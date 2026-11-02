@@ -98,7 +98,7 @@ public final class MainActivity extends Activity {
         root.requestApplyInsets();
 
         LinearLayout brand=horizontal();
-        ImageView mark=art(R.drawable.ic_shield,7); mark.setBackground(panel(0xFF423925,0xFF242A2B,0xFF665438,12)); brand.addView(mark,lp(38,38));
+        ImageView mark=art(R.drawable.art_28000001,2); mark.setBackground(panel(0xFF423925,0xFF242A2B,0xFF665438,12)); brand.addView(mark,lp(38,38));
         LinearLayout wordmark=column(); wordmark.setPadding(dp(10),0,0,0); wordmark.addView(title("CLASH LEDGER",22));
         wordmark.addView(label("YOUR VILLAGE COMPANION",muted)); brand.addView(wordmark,new LinearLayout.LayoutParams(0,-2,1));
         brand.addView(iconButton(R.drawable.ic_widget,"Add home screen widget",this::pinWidget),lp(44,44));
