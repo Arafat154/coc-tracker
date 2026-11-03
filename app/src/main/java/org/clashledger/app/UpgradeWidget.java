@@ -14,6 +14,7 @@ import java.text.DateFormat;
 import java.util.Date;
 
 public final class UpgradeWidget extends AppWidgetProvider {
+    public static final String SWITCH_VILLAGE="org.clashledger.SWITCH_VILLAGE";
     public static void refresh(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
         int[] ids = manager.getAppWidgetIds(new ComponentName(context, UpgradeWidget.class));
@@ -28,6 +29,7 @@ public final class UpgradeWidget extends AppWidgetProvider {
     @Override public void onReceive(Context c, Intent i) {
         super.onReceive(c, i);
         String action = i.getAction();
+        if(SWITCH_VILLAGE.equals(action)) { Ledger.next(c);refresh(c);Reminders.sync(c,true);return; }
         if ("org.clashledger.REFRESH".equals(action) || "android.intent.action.TIME_SET".equals(action) || "android.intent.action.TIMEZONE_CHANGED".equals(action)) refresh(c);
     }
     @Override public void onDisabled(Context c) { scheduleNext(c, false); }
@@ -48,10 +50,28 @@ public final class UpgradeWidget extends AppWidgetProvider {
         // Best effort: Android may defer this refresh in Doze. No exact-alarm permission.
         if (next != Long.MAX_VALUE) alarms.setAndAllowWhileIdle(android.app.AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + Math.max(1000, next - now), intent);
     }
+    static void bindVillageSwitch(Context c,RemoteViews root,Ledger selected) {
+        java.util.List<Ledger> villages=Ledger.all(c);int index=0;
+        for(int n=0;n<villages.size();n++)if(villages.get(n).profileId.equals(selected.profileId))index=n;
+        root.setViewVisibility(R.id.switch_village,villages.size()>1?View.VISIBLE:View.GONE);
+        if(villages.size()>1) {
+            String next=villages.get((index+1)%villages.size()).village;
+            root.setContentDescription(R.id.switch_village,"Switch village to "+next+". Current village "+(index+1)+" of "+villages.size());
+            root.setOnClickPendingIntent(R.id.switch_village,PendingIntent.getBroadcast(c,4,
+                new Intent(c,UpgradeWidget.class).setAction(SWITCH_VILLAGE),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
+        }
+    }
     static void render(Context c, AppWidgetManager manager, int id) {
         Ledger ledger = new Ledger(c);
+        if(DisplaySettings.compactWidget(c)){CompactWidget.render(c,manager,id,ledger);return;}
         long now = System.currentTimeMillis(), elapsed = SystemClock.elapsedRealtime();
         RemoteViews root = new RemoteViews(c.getPackageName(), R.layout.widget);
+        bindVillageSwitch(c,root,ledger);
+        if(DisplaySettings.oled(c)) {
+            root.setInt(R.id.widget_root,"setBackgroundResource",R.drawable.oled_bg);
+            root.setInt(R.id.boost_strip,"setBackgroundResource",R.drawable.oled_tile);
+            root.setInt(R.id.refresh,"setBackgroundResource",R.drawable.oled_tile);
+        }
         PendingIntent open = PendingIntent.getActivity(c, 0, new Intent(c, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         PendingIntent refresh = PendingIntent.getBroadcast(c, 1, new Intent(c, UpgradeWidget.class).setAction("org.clashledger.REFRESH"), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         root.setOnClickPendingIntent(R.id.village, open);

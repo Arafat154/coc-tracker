@@ -28,7 +28,9 @@ public final class Reminders {
             && c.getSystemService(NotificationManager.class).areNotificationsEnabled();
     }
     public static boolean exact(Context c) { return Build.VERSION.SDK_INT<31 || c.getSystemService(AlarmManager.class).canScheduleExactAlarms(); }
-    public static synchronized void sync(Context c, boolean deliverDue) {
+    public static synchronized void sync(Context c,boolean deliverDue) { sync(c,deliverDue,null); }
+    public static synchronized void syncChanged(Context c,String profileId) { sync(c,true,profileId); }
+    private static void sync(Context c,boolean deliverDue,String quietProfile) {
         AlarmManager manager=c.getSystemService(AlarmManager.class);
         manager.cancel(alarm(c,false));
         ReminderSettings settings=new ReminderSettings(c);
@@ -36,14 +38,18 @@ public final class Reminders {
             manager.cancel(alarm(c,true)); state(c).edit().remove("armed").apply(); return;
         }
         ensureChannel(c,settings);
-        Ledger ledger=new Ledger(c); long now=System.currentTimeMillis();
+        long now=System.currentTimeMillis();
         Map<String,Long> previous=new HashMap<>();
         try {
             JSONObject saved=new JSONObject(state(c).getString("armed","{}"));
             java.util.Iterator<String> keys=saved.keys();
             while(keys.hasNext()) { String key=keys.next(); previous.put(key,saved.getLong(key)); }
         } catch(org.json.JSONException ignored) { /* Rebuild an invalid schedule from the saved village. */ }
-        ReminderPlan plan=new ReminderPlan(ReminderPlan.events(ledger.upgrades,ledger.playerTag,ledger.boostUntil,now,settings.categories,settings.potion,ledger.boosts),previous,now,deliverDue);
+        java.util.List<ReminderPlan.Event> events=new java.util.ArrayList<>();
+        for(Ledger ledger:Ledger.all(c))for(ReminderPlan.Event e:ReminderPlan.events(ledger.upgrades,ledger.profileId,ledger.boostUntil,now,settings.categories,settings.potion,ledger.boosts))
+            if(!ledger.profileId.equals(quietProfile)||e.remaining>0)
+                events.add(new ReminderPlan.Event(e.key,e.title,ledger.village+" · "+e.detail,e.remaining));
+        ReminderPlan plan=new ReminderPlan(events,previous,now,deliverDue);
         // Persist before delivery so another receiver cannot repeat the same completion alert.
         state(c).edit().putString("armed",new JSONObject(plan.armed).toString()).commit();
         for(ReminderPlan.Event event:plan.due) post(c,settings,event.key,event.title,event.detail);
@@ -77,7 +83,7 @@ public final class Reminders {
     private static void post(Context c,ReminderSettings settings,String key,String title,String detail) {
         if(!allowed(c))return;
         ensureChannel(c,settings);
-        PendingIntent open=PendingIntent.getActivity(c,50,new Intent(c,MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent open=PendingIntent.getActivity(c,50,new Intent(c,MainActivity.class).setData(android.net.Uri.parse("clashledger://village/"+android.net.Uri.encode(key.split("\\|",2)[0]))).putExtra("profileId",key.split("\\|",2)[0]).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         Intent dismiss=new Intent(c,ReminderReceiver.class).setAction(DISMISS).setData(android.net.Uri.parse("clashledger://reminder/"+android.net.Uri.encode(key))).putExtra("key",key);
         PendingIntent stop=PendingIntent.getBroadcast(c,51,dismiss,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
         boolean alarm=settings.mode.equals("alarm");

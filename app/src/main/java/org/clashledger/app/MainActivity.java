@@ -23,10 +23,10 @@ import java.util.UUID;
 
 public final class MainActivity extends Activity {
     private final int gold = Color.rgb(242,196,108), ink = Color.rgb(242,245,247), muted = Color.rgb(144,158,174);
-    private final int canvas = Color.rgb(12,18,27), surface = Color.rgb(22,31,44), line = Color.rgb(41,54,72), green = Color.rgb(143,219,166);
+    private int canvas = Color.rgb(12,18,27), surface = Color.rgb(22,31,44), line = Color.rgb(41,54,72), green = Color.rgb(143,219,166);
     private Ledger ledger;
     private LinearLayout content, timerList, tabs;
-    private TextView boostStatus, boostCaption, overview, nextBuilder, readyCount, reminderStatusView;
+    private TextView boostStatus, boostCaption, overview, nextBuilder, nextResearch, reminderStatusView;
     private Typeface displayFace;
     private boolean builderBase;
     private final java.util.List<TimerBinding> bindings = new java.util.ArrayList<>();
@@ -38,6 +38,7 @@ public final class MainActivity extends Activity {
     private final Runnable tick = new Runnable() { public void run() { updateTimers(); handler.postDelayed(this, 1000); } };
 
     @Override public void onCreate(Bundle state) {
+        if(DisplaySettings.oled(this))setTheme(R.style.AppTheme_Oled);
         super.onCreate(state);
         displayFace = Typeface.createFromAsset(getAssets(), "fonts/BarlowCondensed-Bold.ttf");
         if (state != null) builderBase = state.getBoolean("builderBase");
@@ -47,8 +48,16 @@ public final class MainActivity extends Activity {
         ledger = new Ledger(this);
     }
     @Override protected void onSaveInstanceState(Bundle state) { state.putBoolean("builderBase", builderBase); super.onSaveInstanceState(state); }
-    @Override protected void onResume() { super.onResume(); ledger = new Ledger(this); build(); handler.removeCallbacks(tick); handler.post(tick); UpgradeWidget.refresh(this); Reminders.sync(this,true); updateReminderStatus(); consumeSharedExport(); }
+    @Override protected void onResume() { super.onResume(); consumeProfileIntent(); ledger = new Ledger(this); build(); handler.removeCallbacks(tick); handler.post(tick); UpgradeWidget.refresh(this); Reminders.sync(this,true); updateReminderStatus(); consumeSharedExport();consumeUpgradeIntent(); }
     @Override protected void onPause() { handler.removeCallbacks(tick); super.onPause(); }
+    private void consumeUpgradeIntent() {
+        String id=getIntent().getStringExtra("upgradeId");if(id==null)return;getIntent().removeExtra("upgradeId");
+        for(Upgrade u:ledger.upgrades)if(u.id.equals(id)){editor(u);break;}
+    }
+    private void consumeProfileIntent() {
+        String id=getIntent().getStringExtra("profileId");
+        if(id!=null){Ledger.select(this,id);getIntent().removeExtra("profileId");}
+    }
     private void consumeSharedExport() {
         android.content.Intent i=getIntent();
         if(!android.content.Intent.ACTION_SEND.equals(i.getAction()))return;
@@ -73,8 +82,9 @@ public final class MainActivity extends Activity {
         },"export-reader").start();
     }
     private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
-    private GradientDrawable bg(int color, int radius) { GradientDrawable b = new GradientDrawable(); b.setColor(color); b.setCornerRadius(dp(radius)); return b; }
+    private GradientDrawable bg(int color, int radius) { GradientDrawable b = new GradientDrawable(); b.setColor(DisplaySettings.oled(this)&&color!=Color.TRANSPARENT?Color.BLACK:color); b.setCornerRadius(dp(radius)); return b; }
     private GradientDrawable panel(int first, int second, int border, int radius) {
+        if(DisplaySettings.oled(this)&&first!=0xFFF7D88F){first=Color.BLACK;second=Color.BLACK;border=0xFF333333;}
         GradientDrawable d = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{first, second});
         d.setCornerRadius(dp(radius)); d.setStroke(dp(1),border); return d;
     }
@@ -110,6 +120,8 @@ public final class MainActivity extends Activity {
         touch(b,panel(0xFFF7D88F,0xFFE7B65A,0xFFFFD990,12),action); return b;
     }
     private void build() {
+        canvas=DisplaySettings.oled(this)?Color.BLACK:Color.rgb(12,18,27);
+        getWindow().setStatusBarColor(canvas);getWindow().setNavigationBarColor(canvas);
         LinearLayout root=column(); root.setBackgroundColor(canvas);
         ScrollView scroll=new ScrollView(this); scroll.setFillViewport(true); scroll.setClipToPadding(false); scroll.setVerticalScrollBarEnabled(false);
         content=column(); content.setPadding(dp(20),dp(14),dp(20),dp(24)); scroll.addView(content); root.addView(scroll,lp(-1,-1));
@@ -137,19 +149,22 @@ public final class MainActivity extends Activity {
         heroCopy.addView(label("HOME VILLAGE",gold)); space(heroCopy,7);
         TextView village=title(ledger.townHall>0 ? "Town Hall "+ledger.townHall : "Your village",29); heroCopy.addView(village);
         space(heroCopy,5); TextView player=text(ledger.village,12,0xFFCDD6DC,true); player.setMaxLines(1); player.setEllipsize(android.text.TextUtils.TruncateAt.END); heroCopy.addView(player);
+        player.setContentDescription("Switch village: "+ledger.village);player.setOnClickListener(v->accounts());
         space(heroCopy,10); TextView local=text(ledger.importedAt>0 ? "Export · " + DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.SHORT).format(new Date(ledger.importedAt)) : "Import your village to get started",10,0xFF9DAFB8,false); heroCopy.addView(local);
         heroTop.addView(heroCopy,new LinearLayout.LayoutParams(0,-2,1));
         ImageView town=art(Artwork.townHall(this,ledger.townHall),0); heroTop.addView(town,lp(100,102)); hero.addView(heroTop);
         space(hero,9);
         Button importer=primary("Import village JSON",this::importJson); importer.setCompoundDrawablePadding(dp(8));
         android.graphics.drawable.Drawable download=getDrawable(R.drawable.ic_import); download.setTint(0xFF49351A); download.setBounds(0,0,dp(18),dp(18)); importer.setCompoundDrawables(download,null,null,null);
-        hero.addView(importer,lp(-1,42)); content.addView(hero);
+        hero.addView(importer,lp(-1,42));space(hero,6);
+        hero.addView(button("Switch village · "+Ledger.all(this).size()+" saved",this::accounts),lp(-1,40));content.addView(hero);
         space(content,12);
 
         LinearLayout metrics=horizontal();
         overview=metric(metrics,"BUILDERS",R.drawable.ic_hammer,gold);
         nextBuilder=metric(metrics,"NEXT FREE",R.drawable.ic_clock,green);
-        readyCount=metric(metrics,"READY",R.drawable.ic_shield,0xFFADA7FF);
+        nextResearch=metric(metrics,"NEXT LAB",R.drawable.ic_clock,0xFFADA7FF);
+        nextResearch.setContentDescription("Next free research slot");
         content.addView(metrics); space(content,16);
 
         LinearLayout boost=horizontal(); boost.setPadding(dp(10),dp(9),dp(12),dp(9)); boost.setBackground(panel(0xFF302B47,0xFF242238,0xFF524563,18));
@@ -204,11 +219,13 @@ public final class MainActivity extends Activity {
         long now=System.currentTimeMillis(), soonest=Long.MAX_VALUE; int ready=0;
         for(Upgrade u:ledger.upgrades) {
             long left=u.wallRemaining(now,ledger.boostUntil);
-            if(left<=0) ready++; else if(u.isBuilder()) soonest=Math.min(soonest,left);
+            if(left<=0) ready++; else if(u.isBuilder()&&!u.goblin) soonest=Math.min(soonest,left);
         }
         overview.setText(ledger.busy(now)+" / "+ledger.builders+(ledger.goblins(now)>0?" + G":""));
         nextBuilder.setText(soonest==Long.MAX_VALUE?"Available":Upgrade.duration(soonest));
-        readyCount.setText(String.format(java.util.Locale.getDefault(),"%02d",ready));
+        long research=UpgradeSummary.next(ledger.upgrades,builderBase?"Star Laboratory":"Laboratory",now,ledger.boostUntil);
+        nextResearch.setText(research==0?"Available":Upgrade.duration(research));
+        nextResearch.setContentDescription((builderBase?"Star Laboratory":"Laboratory")+" next free: "+(research==0?"Available":Upgrade.duration(research)));
         boolean boosted=ledger.boostUntil>now;
         boostStatus.setText(ledger.boosts.summary(now,ledger.boostUntil));
         String helper="";for(Upgrade u:ledger.upgrades)if(u.remaining(now,ledger.boostUntil)>0&&!u.helperLabel(now).isEmpty())helper+=(helper.isEmpty()?"":"\n")+u.name+" · "+u.helperLabel(now);
@@ -339,7 +356,7 @@ public final class MainActivity extends Activity {
             .setMessage("Clash Ledger is an open-source, offline upgrade tracker. Import a new export when you make changes in-game.\n\nArtwork © Supercell, sourced through the ClashKing asset collection. Barlow Condensed by Jeremy Tribby (SIL Open Font License).\n\nThis material is unofficial and is not endorsed by Supercell. For more information see Supercell's Fan Content Policy.")
             .setPositiveButton("Done",null).setNeutralButton("Fan Content Policy",(d,w)->startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,android.net.Uri.parse("https://supercell.com/en/fan-content-policy/")))).show();
     }
-    private void changed() { ledger.save(); Reminders.sync(this,false); UpgradeWidget.refresh(this); build(); }
+    private void changed() { ledger.save(); Reminders.syncChanged(this,ledger.profileId); UpgradeWidget.refresh(this); build(); }
     private LinearLayout form() { LinearLayout l = column(); l.setPadding(dp(22),dp(8),dp(22),dp(10)); return l; }
     private EditText field(LinearLayout form,String label,String value,boolean number) {
         space(form,12); form.addView(text(label,12,muted,false)); space(form,6); EditText e = new EditText(this); e.setText(value); e.setTextColor(ink); e.setSingleLine(true); e.setTextSize(15); e.setPadding(dp(12),dp(12),dp(12),dp(12)); e.setBackground(panel(surface,surface,line,10));
@@ -347,7 +364,7 @@ public final class MainActivity extends Activity {
     }
     private void settingsMenu() {
         new AlertDialog.Builder(this).setTitle("Your village, your way")
-            .setItems(new String[]{"Village settings", "Boosts & helpers", "Countdown format", "Alarms & notifications", "About & artwork"},(d,w)->{if(w==0)settings();else if(w==1)boostOptions();else if(w==2)displayOptions();else if(w==3)reminderOptions();else about();}).setNegativeButton("Close",null).show();
+            .setItems(new String[]{"Switch / manage villages", "Village settings", "Boosts & helpers", "Countdown format", "Appearance & widget layout", "Alarms & notifications", "About & artwork"},(d,w)->{if(w==0)accounts();else if(w==1)settings();else if(w==2)boostOptions();else if(w==3)displayOptions();else if(w==4)appearance();else if(w==5)reminderOptions();else about();}).setNegativeButton("Close",null).show();
     }
     private void updateReminderStatus() {
         if(reminderStatusView==null)return;
@@ -425,12 +442,41 @@ public final class MainActivity extends Activity {
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Alarms & notifications").setView(scroll).setPositiveButton("Done",null).create();
         dialog.setOnDismissListener(d->reminderStatusView=null); dialog.show(); updateReminderStatus();
     }
+    private void appearance() {
+        LinearLayout f=form();
+        CheckBox black=new CheckBox(this);black.setText("Pure black · OLED");black.setTextColor(ink);black.setChecked(DisplaySettings.oled(this));f.addView(black);
+        f.addView(text("Black backgrounds in the app and widgets, with readable borders and colored progress.",12,muted,false));space(f,14);
+        CheckBox compact=new CheckBox(this);compact.setText("Compact icon-grid widget");compact.setTextColor(ink);compact.setChecked(DisplaySettings.compactWidget(this));f.addView(compact);
+        f.addView(text("Progress rings on upgrade icons, without scrolling. Resize to fit more icons. Any overflow is shown as a more count. Turn off for the detailed list.",12,muted,false));
+        new AlertDialog.Builder(this).setTitle("Appearance & widget layout").setView(f).setNegativeButton("Cancel",null).setPositiveButton("Save",(d,w)->{
+            getSharedPreferences("display",0).edit().putBoolean("oled",black.isChecked()).putBoolean("compactWidget",compact.isChecked()).apply();
+            UpgradeWidget.refresh(this);recreate();
+        }).show();
+    }
+    private void accounts() {
+        java.util.List<Ledger> saved=Ledger.all(this);String[] labels=new String[saved.size()];
+        for(int i=0;i<saved.size();i++){Ledger l=saved.get(i);labels[i]=(l.profileId.equals(ledger.profileId)?"✓  ":"")+l.village+(l.playerTag.isEmpty()||l.village.equals(l.playerTag)?"":" · "+l.playerTag)+"  · TH "+l.townHall;}
+        new AlertDialog.Builder(this).setTitle("Switch village").setItems(labels,(d,w)->{
+            Ledger.select(this,saved.get(w).profileId);ledger=new Ledger(this);build();UpgradeWidget.refresh(this);Reminders.sync(this,true);
+        }).setPositiveButton("Import another",(d,w)->importJson()).setNeutralButton("Manage villages",(d,w)->manageAccounts()).setNegativeButton("Close",null).show();
+    }
+    private void manageAccounts() {
+        LinearLayout f=form();f.addView(text("Widgets show the selected village. Reminders continue for all saved villages. Imports update only the matching player tag.",13,muted,false));
+        ScrollView scroll=new ScrollView(this);scroll.addView(f);
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Manage saved villages").setView(scroll).setNegativeButton("Close",null).create();
+        for(Ledger saved:Ledger.all(this))f.addView(button("Remove "+saved.village,()->{
+            new AlertDialog.Builder(this).setTitle("Remove "+saved.village+"?").setMessage("Only its saved timers and helper settings on this device are removed. Your in-game village is unaffected.")
+                .setNegativeButton("Cancel",null).setPositiveButton("Remove",(d,w)->{Ledger.remove(this,saved.profileId);ledger=new Ledger(this);dialog.dismiss();build();Reminders.sync(this,true);UpgradeWidget.refresh(this);}).show();
+        }));
+        f.addView(button("Add an empty village",()->{ledger=Ledger.create(this);dialog.dismiss();build();UpgradeWidget.refresh(this);settings();}));dialog.show();
+    }
     private void settings() {
         LinearLayout f=form(); EditText name=field(f,"Village name",ledger.village,false), count=field(f,"Available builders (1–7)",String.valueOf(ledger.builders),true);
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Your village").setView(f).setNegativeButton("Cancel",null).setPositiveButton("Save",null).create();
         dialog.setOnShowListener(x -> dialog.getButton(-1).setOnClickListener(v -> { try { int n=Integer.parseInt(count.getText().toString()); if(n<1||n>7) throw new IllegalArgumentException(); if(n<ledger.busy(System.currentTimeMillis())) { count.setError("Finish or remove busy builder timers first"); return; } String s=name.getText().toString().trim(); if(s.isEmpty()||s.length()>40) { name.setError("Use 1–40 characters"); return; } ledger.village=s; ledger.builders=n; changed(); dialog.dismiss(); } catch(IllegalArgumentException e) { count.setError("Enter 1–7"); } })); dialog.show();
     }
     private void editor(Upgrade existing) {
+        final String editingProfile=ledger.profileId;
         LinearLayout f=form();
         EditText name=field(f,"Upgrade name",existing==null?"":existing.name,false);
         Spinner group=new Spinner(this); String[] groups=Upgrade.GROUPS; group.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,groups));
@@ -445,17 +491,21 @@ public final class MainActivity extends Activity {
         AlertDialog dialog=new AlertDialog.Builder(this).setTitle(existing==null?"Add upgrade":"Edit upgrade").setView(sc).setNegativeButton("Cancel",null).setPositiveButton("Save",null).create();
         dialog.setOnShowListener(x -> dialog.getButton(-1).setOnClickListener(v -> {
             try {
+                if(!editingProfile.equals(ledger.profileId)){Toast.makeText(this,"Village changed. Open the upgrade again.",Toast.LENGTH_LONG).show();dialog.dismiss();return;}
+                Upgrade current=null;
+                if(existing!=null){for(Upgrade saved:ledger.upgrades)if(saved.id.equals(existing.id)){current=saved;break;}
+                    if(current==null){Toast.makeText(this,"This timer was removed. Open the queue again.",Toast.LENGTH_LONG).show();dialog.dismiss();return;}}
                 String n=name.getText().toString().trim(); if(n.isEmpty()||n.length()>60) { name.setError("Use 1–60 characters"); return; }
                 int l=Integer.parseInt(level.getText().toString()), dd=Integer.parseInt(days.getText().toString()), hh=Integer.parseInt(hours.getText().toString()), mm=Integer.parseInt(minutes.getText().toString());
                 if(l<1||l>999||dd<0||dd>365||hh<0||hh>23||mm<0||mm>59) throw new IllegalArgumentException();
                 long work=(dd*1440L+hh*60L+mm)*60000L;
                 String g=groups[group.getSelectedItemPosition()]; long now=System.currentTimeMillis();
-                int busy=0; for(Upgrade u:ledger.upgrades) if(u!=existing&&!u.goblin&&u.group.equals(g)&&u.remaining(now,ledger.boostUntil)>0) busy++;
+                int busy=0; for(Upgrade u:ledger.upgrades) if(u!=current&&!u.goblin&&u.group.equals(g)&&u.remaining(now,ledger.boostUntil)>0) busy++;
                 int capacity=g.equals("Builders")?ledger.builders:g.equals("Builder Base")?2:1;
-                if(work>0&&busy>=capacity&&(existing==null||!existing.goblin)) { Toast.makeText(this,"All "+g.toLowerCase(java.util.Locale.ROOT)+" slots are busy. Edit or remove an existing timer.",Toast.LENGTH_LONG).show(); return; }
-                Upgrade u=new Upgrade(existing==null?UUID.randomUUID().toString():existing.id,n,g,l,work,now);
+                if(work>0&&busy>=capacity&&(current==null||!current.goblin)) { Toast.makeText(this,"All "+g.toLowerCase(java.util.Locale.ROOT)+" slots are busy. Edit or remove an current timer.",Toast.LENGTH_LONG).show(); return; }
+                Upgrade u=new Upgrade(current==null?UUID.randomUUID().toString():current.id,n,g,l,work,now);
                 u.boosts=ledger.boosts;
-                if(existing!=null) { if(g.equals(existing.group)){u.helperLevel=existing.helperLevel;u.helperEnd=existing.helperEnd;u.helperNext=existing.helperNext;u.helperRecurrent=existing.helperRecurrent;} u.goblin=existing.goblin; if(work==mins*60000L && g.equals(existing.group)) { u.work=existing.remaining(now,ledger.boostUntil); u.total=existing.total; } ledger.upgrades.set(ledger.upgrades.indexOf(existing),u); } else ledger.upgrades.add(u);
+                if(current!=null) { if(g.equals(current.group)){u.helperLevel=current.helperLevel;u.helperEnd=current.helperEnd;u.helperNext=current.helperNext;u.helperRecurrent=current.helperRecurrent;} u.goblin=current.goblin; if(work==mins*60000L && g.equals(current.group)) { u.work=current.remaining(now,ledger.boostUntil); u.total=current.total; } ledger.upgrades.set(ledger.upgrades.indexOf(current),u); } else ledger.upgrades.add(u);
                 changed(); dialog.dismiss();
             } catch(IllegalArgumentException e) { Toast.makeText(this,"Enter level 1–999, days 0–365, hours 0–23 and minutes 0–59.",Toast.LENGTH_LONG).show(); }
         })); dialog.show();
@@ -479,7 +529,7 @@ public final class MainActivity extends Activity {
             input.setText(value); input.setError(null);
         }));
         space(f,12); f.addView(input); space(f,12);
-        f.addView(text("Import replaces the saved village timers and boost with this snapshot. New in-game actions require a fresh export.", 12, muted, false));
+        f.addView(text("Imports update the matching player tag or add a new saved village. Other villages are kept. New in-game actions require a fresh export.", 12, muted, false));
         ScrollView sc = new ScrollView(this); sc.addView(f);
         AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Import village JSON").setView(sc).setNegativeButton("Cancel",null).setNeutralButton("Choose file",(x,w)->startActivityForResult(new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).addCategory(android.content.Intent.CATEGORY_OPENABLE).setType("*/*").putExtra(android.content.Intent.EXTRA_MIME_TYPES,new String[]{"application/json","text/plain"}),700)).setPositiveButton("Preview import",null).create();
         dialog.setOnShowListener(x -> dialog.getButton(-1).setOnClickListener(v -> {
@@ -501,11 +551,12 @@ public final class MainActivity extends Activity {
                 summary.append("\n\n").append(data.boosts.summary(now,data.boostUntil));
                 for(Upgrade u:data.upgrades)if(u.helperLevel>0)summary.append("\n").append(u.name).append(" · helper L").append(u.helperLevel).append(u.helperEnd>now?" · "+Upgrade.duration(u.helperEnd-now)+" active":" · resting");
                 summary.append("\n\nManual event adjustments reset on import.");
-                if (ledger.importedAt > data.timestamp && data.tag.equals(ledger.playerTag)) summary.append("\n\nThis export is older than your last import.");
+                for(Ledger saved:Ledger.all(this))if(data.tag.equalsIgnoreCase(saved.playerTag)&&saved.importedAt>data.timestamp)
+                    summary.append("\n\nThis export is older than the saved import for ").append(saved.village).append(".");
                 for (String warning : data.warnings) summary.append("\n\n").append(warning);
-                summary.append("\n\nReplace current timers with this export?");
+                summary.append("\n\nThis updates the saved village with this player tag, or adds a new village. Other villages are kept.");
                 new AlertDialog.Builder(this).setTitle("Review village import").setMessage(summary.toString()).setNegativeButton("Back",null)
-                    .setPositiveButton("Import village",(d,w) -> { ledger.importVillage(data); changed(); dialog.dismiss(); Toast.makeText(this,"Imported " + data.upgrades.size() + " upgrade timers",Toast.LENGTH_LONG).show(); }).show();
+                    .setPositiveButton("Import village",(d,w) -> { ledger=ledger.importVillage(data); changed(); dialog.dismiss(); Toast.makeText(this,"Imported " + data.upgrades.size() + " upgrade timers",Toast.LENGTH_LONG).show(); }).show();
             } catch (org.json.JSONException | IllegalArgumentException e) {
                 input.setError("Invalid village export: " + e.getMessage());
             } catch (java.io.IOException e) {

@@ -44,6 +44,7 @@ public final class WidgetRowsService extends RemoteViewsService {
                 if (!u.group.equals(group)) continue;
                 any = true;
                 RemoteViews row = new RemoteViews(pkg, R.layout.widget_row);
+                if(DisplaySettings.oled(context))row.setInt(R.id.widget_row,"setBackgroundResource",R.drawable.oled_tile);
                 long left = u.wallRemaining(now, ledger.boostUntil);
                 row.setTextViewText(R.id.name, u.name + (u.goblin ? " · G" : "")+(u.helperLevel>0?" · H"+u.helperLevel:""));
                 row.setTextViewText(R.id.level, "→ " + u.level);

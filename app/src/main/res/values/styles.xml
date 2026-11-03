@@ -17,4 +17,14 @@
         <item name="android:windowMinWidthMajor">90%</item>
         <item name="android:windowMinWidthMinor">90%</item>
     </style>
+    <style name="AppTheme.Oled" parent="AppTheme">
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:navigationBarColor">#000000</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="android:alertDialogTheme">@style/LedgerDialog.Oled</item>
+    </style>
+    <style name="LedgerDialog.Oled" parent="LedgerDialog">
+        <item name="android:windowBackground">@drawable/oled_bg</item>
+        <item name="android:colorBackground">#000000</item>
+    </style>
 </resources>

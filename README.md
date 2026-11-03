@@ -32,13 +32,21 @@ In Clash Ledger:
 
 JSON is simply the text export supplied by the game; you do not need to edit it. You can also use **Choose file** to open a saved export, or **Share → Clash Ledger** from an app holding the exported text or file.
 
-The app tracks **one village at a time**. An import replaces your saved upgrade list after you confirm it. Reusing the same export does not restart the timers or add duplicates.
+You can keep **multiple villages** on the same device. An import updates the village with the matching player tag, or adds a new one. Other villages are kept. Reusing the same export does not restart timers or add duplicate accounts.
+
+Tap **Switch village** on the overview card, or open **Settings → Switch / manage villages**. Each village keeps its own timers, potions, helpers and event adjustments. All widgets follow the selected village. With two or more saved villages, tap the **⇄ switch button beside refresh** on either widget layout to cycle through accounts directly on your home screen—no need to open the app. Reminders continue for all saved villages and include the village name; tapping one opens that village.
+
+Use **Manage villages** to remove a saved village or add an empty one for manual tracking. Removing a local village does not change anything in the game. Your existing village is migrated automatically when updating from earlier versions.
 
 ### 2. Add the home screen widget
 
 Tap the **four-square widget icon** at the top of the app and accept your phone's prompt. You can also long-press an empty area on your home screen, open **Widgets**, and choose **Clash Ledger**.
 
-Resize the widget to fit your home screen. Scroll inside it to see more upgrades, tap a row to open the app, or tap the refresh icon to update the display from your saved timers.
+Resize the widget to fit your home screen. The default **detailed list** scrolls to show every upgrade. Tap a row to open the app, or tap refresh to update the display from your saved timers.
+
+Prefer a smaller tile? Open **Settings → Appearance & widget layout → Compact icon-grid widget**. Each upgrade gets its game icon, a progress ring and one countdown. The grid does not scroll; it fits whole tiles to the widget size and shows **+N more** when space runs out. Ongoing upgrades come first. Tap an icon to edit that timer, or tap the footer to open the full queue. Resize the widget to show more icons.
+
+The compact layout preference applies to all Clash Ledger widgets. Rings refresh with the widget; Clock countdowns tick between refreshes.
 
 ### 3. Choose your countdown style
 
@@ -52,9 +60,29 @@ Open the **gear icon → Countdown format**.
 
 **Clock always shows seconds.** Every upgrade has one countdown, with the same format choice used by the app and widget. The first two formats round up to the next minute and refresh with the widget; Clock ticks continuously while visible.
 
+### 4. Choose a theme
+
+Open **Settings → Appearance & widget layout** and enable **Pure black · OLED** for black app and widget backgrounds. Borders, text and progress remain visible. Turn it off to return to the original navy theme.
+
+### 5. Check the next research slot
+
+The overview’s third summary card is now **Next lab**, replacing the old Ready count. It shows the normal Laboratory slot’s next completion, including boosts and helpers. On the Builder Base tab it follows the **Star Laboratory**. Temporary Goblin research is tracked separately and does not make the normal lab look occupied.
+
+## New in 1.2.1
+
+Compact progress-ring widgets, OLED black theme, next-research summary, multiple saved villages with direct widget switching, and Guardian artwork for **Logger, Longshot and Smasher**. Additional spell and trap icons include Totem Spell and Giga Bomb. Existing Town Hall 18, Revenge Tower, Super Wizard Tower and Greedy Raven artwork remains available.
+
+<table><tr>
+<td align="center"><img src="docs/screenshots/oled-dashboard.png" width="230" alt="OLED black dashboard with next laboratory timer and saved village switch">OLED dashboard</td>
+<td align="center"><img src="docs/screenshots/compact-widget.png" width="230" alt="Compact widget showing progress rings around game icons without scrolling">Compact widget</td>
+<td align="center"><img src="docs/screenshots/villages.png" width="230" alt="Switching between independently saved villages">Village switching</td>
+</tr></table>
+
+[See the compact widget after resizing](docs/screenshots/compact-widget-small.png).
+
 ## Screenshots
 
-Fresh screenshots from **v1.1.2** on the Android emulator, using demo village data. The widget shows Clock format with one countdown per upgrade. Tap an image to view it full size.
+Detailed-list screenshots from **v1.1.2** on the Android emulator, using demo village data. The widget shows Clock format with one countdown per upgrade. Tap an image to view it full size.
 
 <table>
   <tr>
@@ -185,7 +213,7 @@ Run the checks before opening a pull request:
 
 On Windows, use `gradlew.bat`. The project uses Gradle 8.13, Android Gradle Plugin 8.13.2, and Java 17 source compatibility. Release builds need your own signing configuration; keep signing keys out of the repository. Updates must use the same signing key as the installed app.
 
-There are **49 unit tests** covering timer calculations, imports, boosts, helper forecasts, countdown formats, and reminder planning. See [validation notes and known limits](docs/VALIDATION.md) for the scope of testing. Contributions for real-device testing, export compatibility, accessibility, and timer accuracy are welcome.
+There are **69 unit tests** covering timer calculations, imports, boosts, helper forecasts, countdown formats, reminder planning, account migration/isolation, research summaries and compact-widget sizing. See [validation notes and known limits](docs/VALIDATION.md) for the scope of testing. Contributions for real-device testing, export compatibility, accessibility, and timer accuracy are welcome.
 
 </details>
 

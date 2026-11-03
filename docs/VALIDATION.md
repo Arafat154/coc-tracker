@@ -43,3 +43,22 @@ Further Android versions, physical devices, manufacturer battery policies, acces
 - Building art is illustrative and may show a different level from the exact upgrade.
 - Progress starts from the remaining work at import, rather than a complete upgrade duration database.
 - Notification delivery can be delayed by Android or device restrictions. Alarm tones respect Android sound settings and stop automatically after one minute.
+
+
+## Android 1.2.0
+
+- 65 unit tests: the existing 49 plus account snapshot migration/isolation/selection/removal, compact-grid capacity/overflow, and boosted next-research summaries.
+- Debug APK build and lint pass on JDK 21 / SDK 36.
+- API 36 emulator: verified migration retains all 13 existing timers and boost/helper settings; imported a second TH18 test village; refreshed the same tag without duplication; switched both ways while preserving the other snapshot.
+- OLED uses #000000 for the app and widget surfaces. The detailed and compact layouts remain selectable. Progress is relative to work remaining at import, as before.
+- Compact grid uses portrait/landscape widget dimensions, fixed-size portraits and a bounded bitmap payload. Overflow is explicit. Different launcher sizing, font scaling and older Android RemoteViews implementations still need real-device feedback.
+- Guardians Logger, Longshot and Smasher now have bundled source artwork. Missing spell/trap artwork was added where present in the upstream catalogue. Helper Hut, Crafting Station and a few other unmapped items still use the existing fallback because matching art was not available in that catalogue.
+- Legacy single-village preferences are retained as a migration fallback; the new versioned account book is authoritative after migration. Reminders aggregate accounts with independent identifiers.
+
+- Final emulator checks: compact Logger tap opens the editor, an editor survives background/resume and saves safely, notification-style intents select the correct village, and the reminder schedule contains independent keys for two villages. Resizing adapts the visible grid and overflow. Temporary demo accounts are removed afterward and original data/preferences restored.
+
+## Android 1.2.1
+
+- 69 unit tests pass, including cycling/wrapping, stable ordering after reload, the one-village case and removal.
+- A broadcast-backed switch button is shared by compact and detailed widgets; it only appears with multiple saved villages. Cycling changes the selected account without editing snapshots.
+- Debug build and lint pass. Widget switching refreshes all widgets and keeps reminder scheduling for all accounts.
