@@ -32,6 +32,7 @@ public final class WidgetRowsService extends RemoteViewsService {
         Ledger ledger = new Ledger(context);
         long now = System.currentTimeMillis(), elapsed = SystemClock.elapsedRealtime();
         String pkg = context.getPackageName();
+        String style=context.getSharedPreferences("display",0).getString("timerStyle","compact");
         List<Upgrade> ordered = new ArrayList<>(ledger.upgrades);
         ordered.sort(java.util.Comparator.comparingLong(u -> u.wallRemaining(now, ledger.boostUntil)));
         for (String group : Upgrade.GROUPS) {
@@ -44,14 +45,14 @@ public final class WidgetRowsService extends RemoteViewsService {
                 any = true;
                 RemoteViews row = new RemoteViews(pkg, R.layout.widget_row);
                 long left = u.wallRemaining(now, ledger.boostUntil);
-                row.setTextViewText(R.id.name, u.name + (u.goblin ? " · G" : ""));
+                row.setTextViewText(R.id.name, u.name + (u.goblin ? " · G" : "")+(u.helperLevel>0?" · H"+u.helperLevel:""));
                 row.setTextViewText(R.id.level, "→ " + u.level);
                 row.setImageViewResource(R.id.artwork, Artwork.forName(context, u.name));
                 row.setOnClickFillInIntent(R.id.widget_row, new Intent());
                 row.setChronometerCountDown(R.id.countdown, true);
-                row.setChronometer(R.id.countdown, elapsed + left, null, left > 0);
-                if (left == 0) row.setTextViewText(R.id.countdown, "Ready ✓");
-                row.setTextViewText(R.id.finish, left == 0 ? "Tap to manage" : "Finishes " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(now + left)));
+                row.setChronometer(R.id.countdown, elapsed + left, null, left > 0 && style.equals("clock"));
+                if(!style.equals("clock")||left==0)row.setTextViewText(R.id.countdown,TimerFormat.format(left,style));
+                row.setTextViewText(R.id.finish, left == 0 ? "Tap to manage" : "Finishes " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(new Date(now + left))+(u.helperLabel(now).isEmpty()?"":"\n"+u.helperLabel(now)));
                 row.setProgressBar(R.id.progress, 1000, u.progress(now, ledger.boostUntil), false);
                 row.setOnClickFillInIntent(R.id.name, new Intent());
                 row.setOnClickFillInIntent(R.id.countdown, new Intent());

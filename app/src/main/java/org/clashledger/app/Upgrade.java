@@ -7,6 +7,31 @@ public final class Upgrade {
     public String id, name, group;
     public int level;
     public long work, total, anchor;
+    public BoostState boosts = new BoostState();
+    public int helperLevel;
+    public long helperEnd, helperNext;
+    public boolean helperRecurrent;
+    private static final long HOUR=3600000L, CYCLE=23*HOUR;
+    private long helperTime(long from,long to) {
+        long active=Math.max(0,Math.min(to,helperEnd)-from);
+        if(boosts.repeatHelpers&&helperRecurrent&&helperNext>0)
+            active+=recurringTime(to)-recurringTime(from);
+        return active;
+    }
+    private long recurringTime(long at) {
+        long span=Math.max(0,at-helperNext);
+        return span/CYCLE*HOUR+Math.min(HOUR,span%CYCLE);
+    }
+    private double consumed(long from,long to,long builderEnd) {
+        return boosts.work(group,from,to,builderEnd)+helperLevel*(double)helperTime(from,to);
+    }
+    public String helperLabel(long now) {
+        if(helperLevel==0)return "";
+        String name=isBuilder()?"Apprentice":"Lab Assistant";
+        if(helperEnd>now)return name+" L"+helperLevel+" · "+duration(helperEnd-now)+" active";
+        if(helperRecurrent&&boosts.repeatHelpers&&helperNext>0) return name+" L"+helperLevel+" · repeat estimate";
+        return helperRecurrent?name+" · repeat forecast off":"";
+    }
 
     public Upgrade(String id, String name, String group, int level, long work, long anchor) {
         this.id = id; this.name = name; this.group = group; this.level = level;
@@ -14,15 +39,18 @@ public final class Upgrade {
     }
     public boolean isBuilder() { return group.equals("Builders"); }
     public long remaining(long now, long boostUntil) {
-        long elapsed = Math.max(0, now - anchor);
-        long boosted = isBuilder() ? Math.max(0, Math.min(now, boostUntil) - anchor) : 0;
-        return Math.max(0, work - elapsed - 9 * boosted);
+        return Math.max(0, (long)Math.ceil(work-consumed(anchor,Math.max(anchor,now),boostUntil)));
     }
     public long wallRemaining(long now, long boostUntil) {
-        long left = remaining(now, boostUntil);
-        long boost = isBuilder() ? Math.max(0, boostUntil - now) : 0;
-        if (left <= boost * 10) return (left + 9) / 10;
-        return left - boost * 9;
+        long left=remaining(now,boostUntil);
+        if(left==0)return 0;
+        long low=0,high=left;
+        // Rates are >= 1. Binary search integrates every boost boundary and helper session.
+        while(low<high) {
+            long mid=low+(high-low)/2;
+            if(consumed(now,now+mid,boostUntil)>=left)high=mid;else low=mid+1;
+        }
+        return low;
     }
     public void settle(long now, long boostUntil) {
         work = remaining(now, boostUntil); anchor = now;

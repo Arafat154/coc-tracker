@@ -10,3 +10,5 @@ The Android app and widget include unmodified Clash of Clans item artwork for id
 - Interface icons, backgrounds, and layouts are original application assets.
 
 In-app notice: “This material is unofficial and is not endorsed by Supercell. For more information see Supercell's Fan Content Policy.”
+
+README screenshots in `docs/screenshots/` are captured from the Android emulator using demo village data. They contain the same Supercell artwork and retain the attribution above.

@@ -38,11 +38,13 @@ public final class UpgradeWidget extends AppWidgetProvider {
         if (!enabled) return;
         Ledger ledger = new Ledger(c);
         long now = System.currentTimeMillis(), next = Long.MAX_VALUE;
-        if (ledger.boostUntil > now) next = ledger.boostUntil;
+        if (ledger.boostUntil > now) next = Math.min(next,ledger.boostUntil);
         for (Upgrade u : ledger.upgrades) {
             long left = u.wallRemaining(now, ledger.boostUntil);
-            if (left > 0) next = Math.min(next, now + left);
+            if (left > 0) next = Math.min(next, now + Math.min(left,60000));
         }
+        for(long end:ledger.boosts.ends)if(end>now)next=Math.min(next,Math.min(end,now+60000));
+        if(ledger.boosts.eventEnd>now&&ledger.boosts.eventRate>1)next=Math.min(next,Math.min(ledger.boosts.eventEnd,now+60000));
         // Best effort: Android may defer this refresh in Doze. No exact-alarm permission.
         if (next != Long.MAX_VALUE) alarms.setAndAllowWhileIdle(android.app.AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + Math.max(1000, next - now), intent);
     }
@@ -58,12 +60,17 @@ public final class UpgradeWidget extends AppWidgetProvider {
         root.setTextViewText(R.id.village, ledger.village);
         root.setImageViewResource(R.id.townhall, Artwork.townHall(c, ledger.townHall));
         root.setOnClickPendingIntent(R.id.townhall, open);
+        root.setOnClickPendingIntent(R.id.boost,open);
         root.setTextViewText(R.id.widget_meta, (ledger.townHall > 0 ? "TH " + ledger.townHall + " · " : "") + ledger.busy(now) + "/" + ledger.builders + " BUILDERS" + (ledger.goblins(now) > 0 ? " + G" : ""));
         boolean boosted = ledger.boostUntil > now;
-        root.setTextViewText(R.id.boost, boosted ? "Builder Potion · 10×" : "Builder Potion · idle");
-        root.setViewVisibility(R.id.boost_clock, boosted ? View.VISIBLE : View.GONE);
+        String style=c.getSharedPreferences("display",0).getString("timerStyle","compact");
+        boolean live=style.equals("clock");
+        String summary=ledger.boosts.summary(now,ledger.boostUntil);
+        if(boosted&&live)summary=summary.replace("Builder 10× · "+Upgrade.duration(ledger.boostUntil-now),"Builder Potion · 10×");
+        root.setTextViewText(R.id.boost,summary.replace("\n"," · "));
+        root.setViewVisibility(R.id.boost_clock, boosted&&live ? View.VISIBLE : View.GONE);
         root.setChronometerCountDown(R.id.boost_clock, true);
-        root.setChronometer(R.id.boost_clock, elapsed + Math.max(0, ledger.boostUntil - now), "%s left", boosted);
+        root.setChronometer(R.id.boost_clock, elapsed + Math.max(0, ledger.boostUntil - now), "%s left", boosted&&live);
         if (android.os.Build.VERSION.SDK_INT >= 31) {
             RemoteViews.RemoteCollectionItems.Builder items = new RemoteViews.RemoteCollectionItems.Builder().setViewTypeCount(2).setHasStableIds(false);
             int position = 0;

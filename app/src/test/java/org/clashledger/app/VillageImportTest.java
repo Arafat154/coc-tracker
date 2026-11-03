@@ -64,10 +64,12 @@ public class VillageImportTest {
             catch(org.json.JSONException | IllegalArgumentException expected) { }
         }
     }
-    @Test public void flagsUnsupportedBoostsInsteadOfApplyingBuilderRateToThem() throws Exception {
+    @Test public void importsResearchBoostAtItsOwnRate() throws Exception {
         JSONObject root=new JSONObject(fixture()); root.getJSONObject("boosts").put("lab_boost",1000);
         VillageImport data=new VillageImport(root.toString(),names(),EXPORTED);
-        assertTrue(data.warnings.stream().anyMatch(w -> w.contains("lab boost")));
+        assertEquals(EXPORTED+1000000L,data.boosts.ends[0]);
+        Upgrade lab=data.upgrades.stream().filter(u->u.group.equals("Laboratory")).findFirst().get();
+        assertEquals(lab.work-24000,lab.remaining(EXPORTED+1000,data.boostUntil));
     }
     @Test public void importsTownHallLevelsOneThroughEighteenWithoutChangingTimerMath() throws Exception {
         for(int level=1;level<=18;level++) {

@@ -43,7 +43,7 @@ public final class Reminders {
             java.util.Iterator<String> keys=saved.keys();
             while(keys.hasNext()) { String key=keys.next(); previous.put(key,saved.getLong(key)); }
         } catch(org.json.JSONException ignored) { /* Rebuild an invalid schedule from the saved village. */ }
-        ReminderPlan plan=new ReminderPlan(ReminderPlan.events(ledger.upgrades,ledger.playerTag,ledger.boostUntil,now,settings.categories,settings.potion),previous,now,deliverDue);
+        ReminderPlan plan=new ReminderPlan(ReminderPlan.events(ledger.upgrades,ledger.playerTag,ledger.boostUntil,now,settings.categories,settings.potion,ledger.boosts),previous,now,deliverDue);
         // Persist before delivery so another receiver cannot repeat the same completion alert.
         state(c).edit().putString("armed",new JSONObject(plan.armed).toString()).commit();
         for(ReminderPlan.Event event:plan.due) post(c,settings,event.key,event.title,event.detail);
@@ -67,7 +67,7 @@ public final class Reminders {
     public static void ensureChannel(Context c,ReminderSettings settings) {
         String name=settings.mode.equals("alarm")?"Upgrade alarms":settings.mode.equals("silent")?"Quiet upgrade reminders":"Upgrade notifications";
         NotificationChannel channel=new NotificationChannel(settings.channelId(),name+(settings.vibration?" · vibration":""),settings.mode.equals("silent")?NotificationManager.IMPORTANCE_DEFAULT:NotificationManager.IMPORTANCE_HIGH);
-        channel.setDescription("Upgrade completion and Builder Potion reminders. You can customize sound and vibration here.");
+        channel.setDescription("Upgrade completion and boost expiry reminders. You can customize sound and vibration here.");
         channel.enableVibration(settings.vibration);
         if(settings.vibration)channel.setVibrationPattern(new long[]{0,300,150,300});
         boolean alarm=settings.mode.equals("alarm");

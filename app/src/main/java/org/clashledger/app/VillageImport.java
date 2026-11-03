@@ -12,6 +12,7 @@ public final class VillageImport {
     public final String tag;
     public final long timestamp, boostUntil;
     public final int builders, townHall;
+    public final BoostState boosts = new BoostState();
     public final List<Upgrade> upgrades = new ArrayList<>();
     public final List<String> warnings = new ArrayList<>();
     private static final long MAX_DURATION = 366L * 24 * 3600;
@@ -31,11 +32,21 @@ public final class VillageImport {
         timestamp = number(root, "timestamp", 946684800L, 4102444800L) * 1000L;
         if (timestamp > now + 300000L) throw new IllegalArgumentException("Export timestamp is in the future. Check your device clock.");
         if (!(root.opt("buildings") instanceof JSONArray)) throw new IllegalArgumentException("This is not a village export: buildings are missing.");
-        JSONObject boosts = root.has("boosts") ? root.getJSONObject("boosts") : new JSONObject();
-        long boostSeconds = boosts.has("builder_boost") ? number(boosts, "builder_boost", 0, MAX_DURATION) : 0;
+        JSONObject rawBoosts = root.has("boosts") ? root.getJSONObject("boosts") : new JSONObject();
+        long boostSeconds = rawBoosts.has("builder_boost") ? number(rawBoosts, "builder_boost", 0, MAX_DURATION) : 0;
         boostUntil = boostSeconds > 0 ? timestamp + boostSeconds * 1000L : 0;
-        for (String key : new String[]{"lab_boost", "clocktower_boost", "builder_consumable", "lab_consumable"}) {
-            if (boosts.has(key) && number(boosts,key,0,MAX_DURATION) > 0) warnings.add("Active " + key.replace('_',' ') + " is not simulated; its timers may need correction.");
+        for(int i=0;i<BoostState.KEYS.length;i++) {
+            String key=BoostState.KEYS[i];
+            if(rawBoosts.has(key)) { long seconds=number(rawBoosts,key,0,MAX_DURATION); boosts.ends[i]=seconds>0?timestamp+seconds*1000:0; }
+        }
+        JSONArray helpers=root.optJSONArray("helpers");
+        if(helpers!=null)for(int i=0;i<helpers.length();i++) {
+            JSONObject h=helpers.getJSONObject(i); long id=h.optLong("data");
+            if(id!=93000000&&id!=93000001)continue;
+            int level=(int)number(h,"lvl",0,100);
+            long cooldown=h.has("helper_cooldown")?number(h,"helper_cooldown",0,MAX_DURATION):0;
+            if(id==93000000) { boosts.apprenticeLevel=level; boosts.apprenticeReady=cooldown>0?timestamp+cooldown*1000:0; }
+            else { boosts.labLevel=level; boosts.labReady=cooldown>0?timestamp+cooldown*1000:0; }
         }
         int huts = 0, hall = 0;
         JSONArray buildings = root.getJSONArray("buildings");
@@ -51,7 +62,7 @@ public final class VillageImport {
         }
         townHall = hall;
         builders = Math.max(1, Math.min(6, huts));
-        boolean helper = false;
+
         for (String[] section : SECTIONS) {
             if (!root.has(section[0])) continue;
             JSONArray entries = root.getJSONArray(section[0]);
@@ -65,12 +76,22 @@ public final class VillageImport {
                 if (!names.has(String.valueOf(id))) warnings.add("Unknown item " + id + " kept with its ID; you can rename it.");
                 Upgrade u = new Upgrade("import:" + section[0] + ":" + i, name, section[1], level+1, seconds*1000L, timestamp);
                 u.goblin = item.optBoolean("extra",false);
+                u.boosts=boosts;
+                long helperSeconds=item.has("helper_timer")?number(item,"helper_timer",0,3600):0;
+                u.helperRecurrent=item.optBoolean("helper_recurrent",false);
+                if(helperSeconds>0||u.helperRecurrent) {
+                    u.helperLevel=u.isBuilder()?boosts.apprenticeLevel:u.group.equals("Laboratory")?boosts.labLevel:0;
+                    u.helperEnd=helperSeconds>0?timestamp+helperSeconds*1000:0;
+                    u.helperNext=u.isBuilder()?boosts.apprenticeReady:boosts.labReady;
+                    if(u.helperNext<=u.helperEnd&&u.helperEnd>0)u.helperNext=u.helperEnd+22*3600000L;
+                    if(u.helperLevel==0)warnings.add("Helper on "+name+" has no supported level; adjust it in Boosts & helpers.");
+                    if(u.helperRecurrent)warnings.add(name+": repeating helper assignment imported. Future sessions use your repeat-forecast setting.");
+                }
                 upgrades.add(u);
-                if (item.optLong("helper_timer",0)>0) helper = true;
                 if (upgrades.size()>300) throw new IllegalArgumentException("Export has too many running upgrades.");
             }
         }
-        if (helper) warnings.add("Active helper work is not simulated; affected timers may need correction.");
+
         if (now-timestamp > 86400000L) warnings.add("This export is over a day old. Timers use its original timestamp.");
     }
     private static long number(JSONObject object, String key, long min, long max) throws JSONException {
