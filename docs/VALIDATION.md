@@ -2,63 +2,73 @@
 
 ## Automated checks
 
-`./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`
+```sh
+./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+```
 
-- 11 tests for elapsed work, short upgrades, potion stacking, early cancellation, boost expiration, research/pet exclusion, and progress limits.
-- 9 import tests including a real-export-shaped anonymized fixture, unknown IDs, validation errors, stale timestamps, Goblin slots, research boost import, and a loop over Town Hall levels 1–18.
-- 15 boost/format tests for category isolation, potion/snack overlap, Clock Tower queues, additive helpers, opt-in repeated sessions, event windows, boost serialization, the supplied Apprentice export shape, old snapshots, and finish-time boundary checks.
-- 4 countdown precision tests covering clock seconds, minute/hour/day carries, subsecond rounding, completed timers, and minute-based word formats.
-- 10 reminder planner tests covering future-only arming, one-time completion delivery, potion/timer rescheduling, deletion, category filtering, old snapshot imports, missed alarms after reboot, and separate village keys.
+The 1.3.0 codebase has **92 JVM unit tests**, covering:
 
-The TH1–18 test varies the Town Hall field in a fixed fixture. It verifies parser flexibility; it does not validate all possible real village layouts, units, special upgrade types, or future game changes.
+- Work consumption, countdown formats, boost boundaries, potions/snacks, Clock Tower, helpers and optional repeat forecasts.
+- Export validation, the anonymized reported TH18 JSON, nested crafted modules, inherited Goblin flags, optional names and Builder Hall capacity.
+- Account migration/isolation, widget grid sizing, next-builder/research summaries and shared Forge builder slots.
+- Reminder scheduling, early alerts, once-only delivery, account-specific keys and boost recalculation.
+- Clipboard export identity, duplicate/older comparisons, unrelated/future input rejection, stable release comparison, APK availability and daily update throttling.
 
-## Device checks
+The Town Hall 1–18 test varies the Town Hall field in one fixture. It does not validate every real village layout or future game update. Lint passes with warnings; this is not a claim of warning-free code.
 
-Android 16 / API 36 x86_64 emulator:
+## Emulator checks
 
-- Install/update and launch the app with preserved data.
-- Paste → preview → import an export, including Town Hall artwork and 13 upgrade timers.
-- Home Village and Builder Base tab selection.
-- Android text-share → preview → import using the supplied Apprentice export, preserving its level-8 assignment and original timestamp.
-- JSON document picker → preview, with cancel preserving the current village.
-- Pet/Research Potion recording, persisted boost windows, repeat-helper preference, and countdown format choices.
-- Clock countdowns observed advancing while the app was in the background. Active Chronometers can prevent UI Automator from reaching idle, so widget ticking is also checked with emulator screenshots.
-- README screenshots captured directly from the API 36 emulator with anonymized demo data.
-- Pin the widget with imported data, artwork, scrolling rows, and live countdowns.
-- Notification permission and exact-alarm settings flows.
-- A scheduled ten-second notification arrived while the app was in the background.
-- A one-minute upgrade created through the UI survived an emulator reboot and produced its completion notification without reopening the app. The completed timer was removed from the armed schedule afterward.
-- Notification dismissal through its action button.
-- A scheduled alarm-mode notification used the repeating alarm flag; **Stop alarm** canceled it before its timeout. The emulator was started with host audio disabled, so physical speaker/vibration and Do Not Disturb behavior still require a real-device check.
+Stock Android 13 / API 33 and Android 16 / API 36 were used during development of this release:
 
-Further Android versions, physical devices, manufacturer battery policies, accessibility font scales, rotation states, and multiple launcher implementations still need coverage before claiming broad production stability.
+- Clipboard button → preview; native rich-text paste; keyboard commit; bounded visible text; clearing a loaded export.
+- Full foreground suggestion workflow: opt-in, Review, explicit import of a synthetic running crafted module, duplicate suppression, older warnings, dismissal and matching another tag without changing the selected village prematurely.
+- Account data restoration after test imports; manual Forge persistence across re-import. Adding a Forge job through the UI updates shared Home builder occupancy.
+- Cached newer/older update banners. Live GitHub checks correctly recognized that the local build was newer than published 1.2.1.
+- Five-minute early-alert setting and custom ringtone URI persistence, with original settings restored afterward.
+- Local crash diagnostics capture stack frames without exception messages or village JSON.
 
-## Known data limits
+Earlier API 36 checks cover migration, multiple villages, compact/detailed widgets, resizing, editor navigation, countdowns, notification actions and delivery after reboot. Physical audio/vibration, OEM battery policies, different launchers and accessibility settings still need broader coverage.
 
-- The app works from an imported snapshot (paste, file or Android share); it does not observe game activity continuously.
-- Builder, Research and Pet Potions, Builder Bite, Clock Tower and Study Soup are modeled. Active Apprentice/Lab Assistant assignments use exported helper data; future repeated sessions are optional forecasts. Other helper types are not modeled.
-- The active Apprentice case is checked against a supplied real export. Other boost combinations have synthetic coverage; a real active Pet Potion export is still needed to confirm its export key. Manual Pet Potion recording is available.
-- Event multipliers are manual forward-looking adjustments, off by default. Imported timers may already include event/Gold Pass duration discounts; applying those again would shorten estimates incorrectly.
-- Unknown IDs retain their timers under editable placeholder names and generic artwork.
-- Building art is illustrative and may show a different level from the exact upgrade.
-- Progress starts from the remaining work at import, rather than a complete upgrade duration database.
-- Notification delivery can be delayed by Android or device restrictions. Alarm tones respect Android sound settings and stop automatically after one minute.
+### Instrumentation commands
 
+After installing the main debug APK, build and install the test APK:
 
-## Android 1.2.0
+```sh
+./gradlew :app:assembleDebugAndroidTest
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w org.clashledger.app.test/org.clashledger.app.ImportSmoke
+```
 
-- 65 unit tests: the existing 49 plus account snapshot migration/isolation/selection/removal, compact-grid capacity/overflow, and boosted next-research summaries.
-- Debug APK build and lint pass on JDK 21 / SDK 36.
-- API 36 emulator: verified migration retains all 13 existing timers and boost/helper settings; imported a second TH18 test village; refreshed the same tag without duplication; switched both ways while preserving the other snapshot.
-- OLED uses #000000 for the app and widget surfaces. The detailed and compact layouts remain selectable. Progress is relative to work remaining at import, as before.
-- Compact grid uses portrait/landscape widget dimensions, fixed-size portraits and a bounded bitmap payload. Overflow is explicit. Different launcher sizing, font scaling and older Android RemoteViews implementations still need real-device feedback.
-- Guardians Logger, Longshot and Smasher now have bundled source artwork. Missing spell/trap artwork was added where present in the upstream catalogue. Helper Hut, Crafting Station and a few other unmapped items still use the existing fallback because matching art was not available in that catalogue.
-- Legacy single-village preferences are retained as a migration fallback; the new versioned account book is authoritative after migration. Reminders aggregate accounts with independent identifiers.
+For the clipboard/update workflow:
 
-- Final emulator checks: compact Logger tap opens the editor, an editor survives background/resume and saves safely, notification-style intents select the correct village, and the reminder schedule contains independent keys for two villages. Resizing adapts the visible grid and overflow. Temporary demo accounts are removed afterward and original data/preferences restored.
+```sh
+./gradlew :app:assembleDebugAndroidTest -PtestRunner=org.clashledger.app.ConvenienceSmoke
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w org.clashledger.app.test/org.clashledger.app.ConvenienceSmoke
+```
 
-## Android 1.2.1
+Use a test emulator. ConvenienceSmoke temporarily changes preferences/accounts and restores their snapshots. Clipboard contents and Android system state may change during tests.
 
-- 69 unit tests pass, including cycling/wrapping, stable ordering after reload, the one-village case and removal.
-- A broadcast-backed switch button is shared by compact and detailed widgets; it only appears with multiple saved villages. Cycling changes the selected account without editing snapshots.
-- Debug build and lint pass. Widget switching refreshes all widgets and keeps reminder scheduling for all accounts.
+## Known limits
+
+- Crash diagnostics saves the latest Java crash locally for optional sharing. Emulator checks do not establish reliability on every physical device; diagnostic reports can help investigate failures.
+- The supplied real export contains crafted-defense definitions without active module timers. Active-module and inherited-Goblin tests are synthetic; another export shape may need additional support.
+- Active Forge data was absent from supplied exports. Forge/Auto Forge tracking is manual and survives re-import; review those timers after game actions. Builder Bite effects on Forge are not assumed.
+- A real active Pet Potion export is still needed to confirm its export key. Manual recording is available. Other boost combinations have synthetic coverage.
+- Apprentice/Lab Assistant active sessions use exported data; future repeated sessions are optional estimates. Other helpers are not modeled.
+- Event multipliers are manual. Exported timers may already include discounts, which must not be applied again.
+- Unknown IDs retain editable placeholder names and fallback artwork. Artwork may depict a different level. Helper Hut, Crafting Station and some other items still lack matching art.
+- Progress starts from remaining work at import, not an upgrade-duration catalogue.
+- Notifications may be delayed by device restrictions. Physical custom-audio playback, persisted document permissions on OEM devices and Do Not Disturb need real-device testing.
+- Clipboard suggestions read only when focused and opted in. Dismissal history is bounded to 64 export identities. Import remains explicit.
+- Automatic update checks run when the app opens, at most once per day, not continuously in the background. Download/install stays user-controlled.
+- Game activity is not automatically observed. New actions require an export or manual edit; inventory-based tracking remains a proposal.
+
+## Implementation references
+
+- [GitHub latest-release API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release)
+- [Android ringtone picker](https://developer.android.com/reference/android/media/RingtoneManager)
+- [Android notification channels](https://developer.android.com/develop/ui/views/notifications/channels)
+- [Android clipboard behavior](https://developer.android.com/develop/ui/views/touch-and-input/copy-paste)
+- [Supercell Forge guide](https://support.supercell.com/clash-of-clans/en/articles/the-forge.html)
+- [Apprentice restrictions](https://supercell.com/en/games/clashofclans/blog/release-notes/june-update-full-patch-notes/)

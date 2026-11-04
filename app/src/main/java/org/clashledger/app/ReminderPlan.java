@@ -32,10 +32,15 @@ public final class ReminderPlan {
         return events(upgrades,village,boostUntil,now,categories,potion,upgrades.isEmpty()?new BoostState():upgrades.get(0).boosts);
     }
     public static List<Event> events(List<Upgrade> upgrades,String village,long boostUntil,long now,Set<String> categories,boolean potion,BoostState s) {
+        return events(upgrades,village,boostUntil,now,categories,potion,s,0);
+    }
+    public static List<Event> events(List<Upgrade> upgrades,String village,long boostUntil,long now,Set<String> categories,boolean potion,BoostState s,int leadMinutes) {
+        long lead=Math.max(0,Math.min(1440,leadMinutes))*60000L;
         List<Event> result=new ArrayList<>();
         for(Upgrade u:upgrades) if(categories.contains(u.group)) {
             String key=village+"|"+u.id+"|"+u.group+"|"+u.name+"|"+u.level;
-            result.add(new Event(key,u.name+" is ready",u.group+" · Level "+u.level+(u.goblin?" · Goblin":""),u.wallRemaining(now,boostUntil)));
+            long left=u.wallRemaining(now,boostUntil);
+            result.add(new Event(key+(lead>0?"|early:"+lead:""),u.name+(lead>0&&left>0?" finishes soon":" is ready"),u.group+(u.isForge()?" · Capital Gold":" · Level "+u.level)+(u.goblin?" · Goblin":"")+(lead>0?" · "+(left>0?"About "+Upgrade.duration(left)+" remaining":"Completed"):""),left-lead));
         }
         if(potion && boostUntil>0) result.add(new Event(village+"|potion|"+boostUntil,"Builder Potion finished","Builder Potion window ended; other boosts may still be active.",Math.max(0,boostUntil-now)));
         if(potion) {

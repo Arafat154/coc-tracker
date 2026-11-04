@@ -2,7 +2,7 @@ package org.clashledger.app;
 
 /** Remaining work is measured in milliseconds at normal speed, never wall time. */
 public final class Upgrade {
-    public static final String[] GROUPS = {"Builders", "Laboratory", "Pets", "Builder Base", "Star Laboratory"};
+    public static final String[] GROUPS = {"Builders", "Laboratory", "Pets", "Builder Base", "Star Laboratory", "Forge", "Auto Forge"};
     public boolean goblin;
     public String id, name, group;
     public int level;
@@ -37,6 +37,8 @@ public final class Upgrade {
         this.id = id; this.name = name; this.group = group; this.level = level;
         this.work = work; this.total = work; this.anchor = anchor;
     }
+    public boolean isForge() { return group.equals("Forge")||group.equals("Auto Forge"); }
+    public boolean occupiesBuilder() { return isBuilder()||group.equals("Forge"); }
     public boolean isBuilder() { return group.equals("Builders"); }
     public long remaining(long now, long boostUntil) {
         return Math.max(0, (long)Math.ceil(work-consumed(anchor,Math.max(anchor,now),boostUntil)));

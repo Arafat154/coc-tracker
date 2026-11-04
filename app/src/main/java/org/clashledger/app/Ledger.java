@@ -11,7 +11,7 @@ import java.util.List;
 public final class Ledger {
     public final List<Upgrade> upgrades = new ArrayList<>();
     public String village = "My village";
-    public int builders = 6, townHall;
+    public int builders = 6, baseBuilders = 2, townHall;
     public long boostUntil, importedAt;
     public BoostState boosts = new BoostState();
     public String playerTag = "";
@@ -45,7 +45,7 @@ public final class Ledger {
         context=c.getApplicationContext();profileId=id;read(saved);
     }
     private void read(JSONObject saved) throws JSONException {
-        village=saved.optString("village","My village");townHall=saved.optInt("townHall");builders=saved.optInt("builders",6);
+        village=saved.optString("village","My village");townHall=saved.optInt("townHall");builders=saved.optInt("builders",6);baseBuilders=saved.optInt("baseBuilders",2);
         importedAt=saved.optLong("importedAt");playerTag=saved.optString("playerTag");boostUntil=saved.optLong("boostUntil");
         boosts=BoostState.read(saved.optJSONObject("boosts"));JSONArray rows=saved.optJSONArray("upgrades");if(rows==null)rows=new JSONArray();
         for(int i=0;i<rows.length();i++) {
@@ -60,7 +60,7 @@ public final class Ledger {
         for(Upgrade u:upgrades)rows.put(new JSONObject().put("id",u.id).put("name",u.name).put("group",u.group).put("level",u.level)
             .put("helperLevel",u.helperLevel).put("helperEnd",u.helperEnd).put("helperNext",u.helperNext).put("helperRecurrent",u.helperRecurrent)
             .put("goblin",u.goblin).put("work",u.work).put("total",u.total).put("anchor",u.anchor));
-        return new JSONObject().put("village",village).put("townHall",townHall).put("builders",builders).put("playerTag",playerTag)
+        return new JSONObject().put("village",village).put("townHall",townHall).put("builders",builders).put("baseBuilders",baseBuilders).put("playerTag",playerTag)
             .put("importedAt",importedAt).put("boostUntil",boostUntil).put("boosts",boosts.json()).put("upgrades",rows);
     }
     public void save() {
@@ -103,18 +103,24 @@ public final class Ledger {
                 if(id==null)id=playerTag.isEmpty()&&upgrades.isEmpty()?profileId:b.add(new JSONObject());
                 // Read the destination profile before replacing its timers, preserving its name and forecast preference.
                 Ledger target=new Ledger(context,id,b.get(id));
-                if(!data.tag.equalsIgnoreCase(target.playerTag))target.village=data.tag;
+                if(!data.tag.equalsIgnoreCase(target.playerTag)||target.village.equals(target.playerTag)||target.village.equals("My village"))
+                    target.village=data.villageName.isEmpty()?data.tag:data.villageName;
                 target.playerTag=data.tag;target.importedAt=data.timestamp;
+                // Exports supplied so far omit Forge: retain manually entered jobs without resetting their timers.
+                List<Upgrade> forge=new ArrayList<>();
+                long now=System.currentTimeMillis();
+                for(Upgrade u:target.upgrades)if(u.isForge()){u.settle(now,target.boostUntil);forge.add(u);}
                 boolean repeat=target.boosts.repeatHelpers;target.boosts=data.boosts;target.boosts.repeatHelpers=repeat;
-                target.builders=data.builders;target.townHall=data.townHall;target.boostUntil=data.boostUntil;
+                target.builders=data.builders;target.baseBuilders=data.baseBuilders;target.townHall=data.townHall;target.boostUntil=data.boostUntil;
                 target.upgrades.clear();target.upgrades.addAll(data.upgrades);
+                for(Upgrade u:forge){u.boosts=target.boosts;target.upgrades.add(u);}
                 b.put(id,target.snapshot());b.select(id);persist(context,b);return target;
             }catch(JSONException e){throw new IllegalStateException("Could not import village",e);}
         }
     }
     public int busy(long now) {
         int count = 0;
-        for (Upgrade u : upgrades) if (u.isBuilder() && !u.goblin && u.remaining(now, boostUntil) > 0) count++;
+        for (Upgrade u : upgrades) if (u.occupiesBuilder() && !u.goblin && u.remaining(now, boostUntil) > 0) count++;
         return count;
     }
 }

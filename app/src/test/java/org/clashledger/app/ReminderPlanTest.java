@@ -53,4 +53,29 @@ public class ReminderPlanTest {
         String b=ReminderPlan.events(List.of(u),"#B",0,NOW,Set.of("Builders"),false).get(0).key;
         assertNotEquals(a,b);
     }
+
+    @Test public void earlyAlertFiresOnceBeforeCompletionAndNotAgainAtCompletion() {
+        Upgrade u=new Upgrade("a","Tower","Builders",2,600000,NOW);
+        List<Upgrade> upgrades=List.of(u);Set<String> categories=Set.of("Builders");
+        ReminderPlan armed=new ReminderPlan(ReminderPlan.events(upgrades,"account",0,NOW,categories,false,u.boosts,5),Map.of(),NOW,true);
+        assertEquals(NOW+300000,armed.next);
+        List<ReminderPlan.Event> early=ReminderPlan.events(upgrades,"account",0,NOW+300000,categories,false,u.boosts,5);
+        assertEquals("Tower finishes soon",early.get(0).title);
+        ReminderPlan due=new ReminderPlan(early,armed.armed,NOW+300000,true);assertEquals(1,due.due.size());
+        ReminderPlan complete=new ReminderPlan(ReminderPlan.events(upgrades,"account",0,NOW+600000,categories,false,u.boosts,5),due.armed,NOW+600000,true);
+        assertTrue(complete.due.isEmpty());
+    }
+    @Test public void earlyWindowDoesNotFloodOnEnableAndLeavesBoostExpiryUnchanged() {
+        Upgrade u=new Upgrade("a","Lab","Laboratory",2,120000,NOW);
+        List<ReminderPlan.Event> events=ReminderPlan.events(List.of(u),"account",NOW+60000,NOW,Set.of("Laboratory"),true,u.boosts,5);
+        assertEquals(-180000,events.get(0).remaining);assertEquals(60000,events.get(1).remaining);
+        assertTrue(new ReminderPlan(events,Map.of(),NOW,true).due.isEmpty());
+    }
+    @Test public void earlyAlertRecalculatesAfterPotionAndKeepsAccountIdentity() {
+        Upgrade u=new Upgrade("a","Tower","Builders",2,3600000,NOW);
+        List<ReminderPlan.Event> regular=ReminderPlan.events(List.of(u),"A",0,NOW,Set.of("Builders"),false,u.boosts,5);
+        List<ReminderPlan.Event> boosted=ReminderPlan.events(List.of(u),"A",NOW+3600000,NOW,Set.of("Builders"),false,u.boosts,5);
+        assertEquals(3300000,regular.get(0).remaining);assertEquals(60000,boosted.get(0).remaining);
+        assertNotEquals(boosted.get(0).key,ReminderPlan.events(List.of(u),"B",NOW+3600000,NOW,Set.of("Builders"),false,u.boosts,5).get(0).key);
+    }
 }

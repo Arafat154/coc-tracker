@@ -15,4 +15,12 @@ public class UpgradeSummaryTest {
         Upgrade home=new Upgrade("a","Home","Laboratory",2,10000,1000),base=new Upgrade("b","Base","Star Laboratory",2,5000,1000);
         assertEquals(5000,UpgradeSummary.next(Arrays.asList(home,base),"Star Laboratory",1000,0));
     }
+
+    @org.junit.Test public void builderBaseAndHomeUseDifferentQueues() {
+        long now=1000;
+        java.util.List<Upgrade> jobs=java.util.List.of(new Upgrade("home","Cannon","Builders",3,60000,now),new Upgrade("base","Cannon","Builder Base",3,120000,now));
+        org.junit.Assert.assertEquals(60000,UpgradeSummary.next(jobs,"Builders",now,0));
+        org.junit.Assert.assertEquals(120000,UpgradeSummary.next(jobs,"Builder Base",now,0));
+        org.junit.Assert.assertEquals(0,UpgradeSummary.next(jobs,"Builder Base",now+120000,0));
+    }
 }

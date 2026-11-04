@@ -81,4 +81,50 @@ public class VillageImportTest {
             assertEquals(70043000L-9*1608000L,data.upgrades.get(0).wallRemaining(EXPORTED,data.boostUntil));
         }
     }
+
+    private JSONObject reported() throws Exception {
+        try(InputStream in=getClass().getResourceAsStream("/reported-export.json")){return new JSONObject(new String(in.readAllBytes(),StandardCharsets.UTF_8));}
+    }
+    @Test public void reportedTh18ExportImportsWithoutLosingHelpers() throws Exception {
+        VillageImport data=new VillageImport(reported().toString(),names(),1793701231000L);
+        assertEquals(18,data.townHall);assertEquals(8,data.upgrades.size());assertEquals(6,data.builders);assertEquals(2,data.baseBuilders);
+        assertEquals("",data.villageName);
+        Upgrade lab=data.upgrades.stream().filter(u->u.group.equals("Laboratory")).findFirst().get();
+        assertEquals(12,lab.helperLevel);assertTrue(lab.helperRecurrent);
+        for(Upgrade u:data.upgrades)assertTrue(u.wallRemaining(data.timestamp,data.boostUntil)>0);
+    }
+    @Test public void craftedModulesAreIndependentBuilderJobsWithStableIds() throws Exception {
+        JSONObject root=reported();org.json.JSONArray types=root.getJSONArray("buildings").getJSONObject(4).getJSONArray("types");
+        types.getJSONObject(0).getJSONArray("modules").getJSONObject(0).put("timer",10000).put("helper_timer",600);
+        types.getJSONObject(1).getJSONArray("modules").getJSONObject(0).put("timer",20000).put("extra",true);
+        VillageImport data=new VillageImport(root.toString(),names(),1793701231000L);
+        assertEquals(10,data.upgrades.size());
+        Upgrade first=data.upgrades.stream().filter(u->u.id.contains(":type:103000011")).findFirst().get();
+        Upgrade second=data.upgrades.stream().filter(u->u.id.contains(":type:103000012")).findFirst().get();
+        assertTrue(first.isBuilder());assertTrue(second.goblin);assertNotEquals(first.id,second.id);
+        assertEquals(2,first.level);assertEquals(8,first.helperLevel);
+        assertTrue(first.wallRemaining(data.timestamp,data.boostUntil)<first.work);
+        assertEquals(first.id,new VillageImport(root.toString(),names(),data.timestamp).upgrades.stream().filter(u->u.id.contains(":type:103000011")).findFirst().get().id);
+    }
+    @Test public void optionalNameAndBuilderHallCapacity() throws Exception {
+        JSONObject root=reported();root.put("name","Test village");
+        root.put("buildings2",new org.json.JSONArray().put(new JSONObject().put("data",1000034).put("lvl",5)));
+        VillageImport data=new VillageImport(root.toString(),names(),1793701231000L);
+        assertEquals("Test village",data.villageName);assertEquals(1,data.baseBuilders);
+    }
+
+    @Test public void craftedGoblinSlotInheritsParentAndAcceptsNumericFlag() throws Exception {
+        JSONObject root=reported();JSONObject type=root.getJSONArray("buildings").getJSONObject(4).getJSONArray("types").getJSONObject(0);
+        type.put("extra",1);type.getJSONArray("modules").getJSONObject(0).put("timer",10000).put("helper_timer",100);
+        VillageImport data=new VillageImport(root.toString(),names(),1793701231000L);
+        Upgrade module=data.upgrades.stream().filter(u->u.id.contains(":type:")).findFirst().get();
+        assertTrue(module.goblin);assertEquals(0,module.helperLevel);
+        assertEquals(8,data.upgrades.stream().filter(u->!u.goblin).count());
+    }
+    @Test public void goblinResearchFlagDoesNotHideTheNormalResearchSlot() throws Exception {
+        JSONObject root=reported();root.getJSONArray("units").getJSONObject(13).put("extra",true);
+        VillageImport data=new VillageImport(root.toString(),names(),1793701231000L);
+        assertEquals(0,UpgradeSummary.next(data.upgrades,"Laboratory",data.timestamp,data.boostUntil));
+        assertTrue(data.upgrades.stream().anyMatch(u->u.group.equals("Laboratory")&&u.goblin));
+    }
 }

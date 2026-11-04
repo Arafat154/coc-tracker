@@ -18,11 +18,11 @@ public final class Artwork {
         RESOURCES.put("Apprentice Warden", R.drawable.art_4000097);
         RESOURCES.put("Archer", R.drawable.art_4000001);
         RESOURCES.put("Archer Queen", R.drawable.art_28000001);
-        RESOURCES.put("Archer Tower", R.drawable.art_1000048);
-        RESOURCES.put("Army Camp", R.drawable.art_1000042);
+        RESOURCES.put("Archer Tower", R.drawable.art_1000009);
+        RESOURCES.put("Army Camp", R.drawable.art_1000000);
         RESOURCES.put("Azure Dragon", R.drawable.art_4000120);
         RESOURCES.put("B.O.B Control", R.drawable.art_1000065);
-        RESOURCES.put("Baby Dragon", R.drawable.art_4000041);
+        RESOURCES.put("Baby Dragon", R.drawable.art_4000023);
         RESOURCES.put("Balloon", R.drawable.art_4000005);
         RESOURCES.put("Barbarian", R.drawable.art_4000000);
         RESOURCES.put("Barbarian Kicker", R.drawable.art_4000121);
@@ -45,7 +45,7 @@ public final class Artwork {
         RESOURCES.put("Builder Hall", R.drawable.art_1000034);
         RESOURCES.put("Builder's Hut", R.drawable.art_1000015);
         RESOURCES.put("C.O.O.K.I.E", R.drawable.art_4000118);
-        RESOURCES.put("Cannon", R.drawable.art_1000044);
+        RESOURCES.put("Cannon", R.drawable.art_1000008);
         RESOURCES.put("Cannon Cart", R.drawable.art_4000037);
         RESOURCES.put("Clan Castle", R.drawable.art_1000014);
         RESOURCES.put("Clock Tower", R.drawable.art_1000039);
@@ -68,8 +68,8 @@ public final class Artwork {
         RESOURCES.put("Electro Titan", R.drawable.art_4000095);
         RESOURCES.put("Electrofire Wizard", R.drawable.art_4000106);
         RESOURCES.put("Elephant Rider", R.drawable.art_4000185);
-        RESOURCES.put("Elixir Collector", R.drawable.art_1000035);
-        RESOURCES.put("Elixir Storage", R.drawable.art_1000036);
+        RESOURCES.put("Elixir Collector", R.drawable.art_1000002);
+        RESOURCES.put("Elixir Storage", R.drawable.art_1000003);
         RESOURCES.put("Firecracker", R.drawable.art_4000119);
         RESOURCES.put("Firecrackers", R.drawable.art_1000050);
         RESOURCES.put("Firespitter", R.drawable.art_1000089);
@@ -83,8 +83,8 @@ public final class Artwork {
         RESOURCES.put("Giant Skeleton", R.drawable.art_4000050);
         RESOURCES.put("Giant Thrower", R.drawable.art_4000122);
         RESOURCES.put("Goblin", R.drawable.art_4000002);
-        RESOURCES.put("Gold Mine", R.drawable.art_1000037);
-        RESOURCES.put("Gold Storage", R.drawable.art_1000038);
+        RESOURCES.put("Gold Mine", R.drawable.art_1000004);
+        RESOURCES.put("Gold Storage", R.drawable.art_1000005);
         RESOURCES.put("Golem", R.drawable.art_4000013);
         RESOURCES.put("Grand Warden", R.drawable.art_28000002);
         RESOURCES.put("Greedy Raven", R.drawable.art_73000017);
@@ -93,7 +93,7 @@ public final class Artwork {
         RESOURCES.put("Healer", R.drawable.art_4000007);
         RESOURCES.put("Healing Hut", R.drawable.art_1000082);
         RESOURCES.put("Hero Hall", R.drawable.art_1000071);
-        RESOURCES.put("Hidden Tesla", R.drawable.art_1000043);
+        RESOURCES.put("Hidden Tesla", R.drawable.art_1000019);
         RESOURCES.put("Hog Glider", R.drawable.art_4000070);
         RESOURCES.put("Hog Rider", R.drawable.art_4000011);
         RESOURCES.put("Hog Wizard", R.drawable.art_4000103);
@@ -175,7 +175,7 @@ public final class Artwork {
         RESOURCES.put("Troop Launcher", R.drawable.art_4000135);
         RESOURCES.put("Unicorn", R.drawable.art_73000003);
         RESOURCES.put("Valkyrie", R.drawable.art_4000012);
-        RESOURCES.put("Wall", R.drawable.art_1000033);
+        RESOURCES.put("Wall", R.drawable.art_1000010);
         RESOURCES.put("Wall Breaker", R.drawable.art_4000004);
         RESOURCES.put("Wall Wrecker", R.drawable.art_4000051);
         RESOURCES.put("Witch", R.drawable.art_4000015);
@@ -183,7 +183,7 @@ public final class Artwork {
         RESOURCES.put("Wizard", R.drawable.art_4000006);
         RESOURCES.put("Wizard Tower", R.drawable.art_1000011);
         RESOURCES.put("Workshop", R.drawable.art_1000059);
-        RESOURCES.put("X-Bow", R.drawable.art_1000081);
+        RESOURCES.put("X-Bow", R.drawable.art_1000021);
         RESOURCES.put("YEETer", R.drawable.art_4000159);
         RESOURCES.put("Yeti", R.drawable.art_4000053);
         RESOURCES.put("Yeti Undertaker", R.drawable.art_4000190);
@@ -196,7 +196,6 @@ public final class Artwork {
         RESOURCES.put("Air Bomb", R.drawable.art_12000005);
         RESOURCES.put("Seeking Air Mine", R.drawable.art_12000006);
         RESOURCES.put("Skeleton Trap", R.drawable.art_12000008);
-        RESOURCES.put("Spring Trap", R.drawable.art_12000010);
         RESOURCES.put("Push Trap", R.drawable.art_12000011);
         RESOURCES.put("Mine", R.drawable.art_12000013);
         RESOURCES.put("Mega Mine", R.drawable.art_12000014);
@@ -226,6 +225,47 @@ public final class Artwork {
     public static int forName(Context context, String name) {
         Integer id=RESOURCES.get(name);
         return id != null ? id : R.drawable.art_town_hall_1;
+    }
+    public static int forUpgrade(Context context, Upgrade u) {
+        if(u.isForge())return R.drawable.art_capital_gold;
+        if(u.group.equals("Builder Base")||u.group.equals("Star Laboratory")) {
+            switch(u.name) {
+                case "Wall": return R.drawable.art_1000033;
+                case "Builder Hall": return R.drawable.art_1000034;
+                case "Elixir Collector": return R.drawable.art_1000035;
+                case "Elixir Storage": return R.drawable.art_1000036;
+                case "Gold Mine": return R.drawable.art_1000037;
+                case "Gold Storage": return R.drawable.art_1000038;
+                case "Clock Tower": return R.drawable.art_1000039;
+                case "Builder Barracks": return R.drawable.art_1000040;
+                case "Double Cannon": return R.drawable.art_1000041;
+                case "Hidden Tesla": return R.drawable.art_1000043;
+                case "Cannon": return R.drawable.art_1000044;
+                case "Multi Mortar": return R.drawable.art_1000045;
+                case "Star Laboratory": return R.drawable.art_1000046;
+                case "Archer Tower": return R.drawable.art_1000048;
+                case "Firecrackers": return R.drawable.art_1000050;
+                case "Guard Post": return R.drawable.art_1000051;
+                case "Mega Tesla": return R.drawable.art_1000052;
+                case "Air Bombs": return R.drawable.art_1000054;
+                case "Crusher": return R.drawable.art_1000055;
+                case "Roaster": return R.drawable.art_1000056;
+                case "Giant Cannon": return R.drawable.art_1000057;
+                case "Gem Mine": return R.drawable.art_1000058;
+                case "Lava Launcher": return R.drawable.art_1000063;
+                case "X-Bow": return R.drawable.art_1000081;
+                case "Healing Hut": return R.drawable.art_1000082;
+                case "Spring Trap": return R.drawable.art_12000010;
+                case "Baby Dragon": return R.drawable.art_4000041;
+            }
+        }
+        return forName(context,u.name);
+    }
+    public static int boost(BoostState state,long builderUntil,long now) {
+        if(builderUntil>now)return R.drawable.art_builder_potion;
+        int[] icons={R.drawable.art_research_potion,R.drawable.art_pet_potion,R.drawable.art_builder_bite,R.drawable.art_clock_potion,R.drawable.art_study_soup};
+        for(int i=0;i<icons.length;i++)if(state.ends[i]>now)return icons[i];
+        return R.drawable.ic_clock;
     }
     public static int townHall(Context context, int level) {
         return TOWN_HALLS[Math.max(1,Math.min(18,level))-1];

@@ -46,7 +46,7 @@ public final class Reminders {
             while(keys.hasNext()) { String key=keys.next(); previous.put(key,saved.getLong(key)); }
         } catch(org.json.JSONException ignored) { /* Rebuild an invalid schedule from the saved village. */ }
         java.util.List<ReminderPlan.Event> events=new java.util.ArrayList<>();
-        for(Ledger ledger:Ledger.all(c))for(ReminderPlan.Event e:ReminderPlan.events(ledger.upgrades,ledger.profileId,ledger.boostUntil,now,settings.categories,settings.potion,ledger.boosts))
+        for(Ledger ledger:Ledger.all(c))for(ReminderPlan.Event e:ReminderPlan.events(ledger.upgrades,ledger.profileId,ledger.boostUntil,now,settings.categories,settings.potion,ledger.boosts,settings.leadMinutes))
             if(!ledger.profileId.equals(quietProfile)||e.remaining>0)
                 events.add(new ReminderPlan.Event(e.key,e.title,ledger.village+" · "+e.detail,e.remaining));
         ReminderPlan plan=new ReminderPlan(events,previous,now,deliverDue);
@@ -77,7 +77,13 @@ public final class Reminders {
         channel.enableVibration(settings.vibration);
         if(settings.vibration)channel.setVibrationPattern(new long[]{0,300,150,300});
         boolean alarm=settings.mode.equals("alarm");
-        channel.setSound(settings.mode.equals("silent")?null:RingtoneManager.getDefaultUri(alarm?RingtoneManager.TYPE_ALARM:RingtoneManager.TYPE_NOTIFICATION),new AudioAttributes.Builder().setUsage(alarm?AudioAttributes.USAGE_ALARM:AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+        android.net.Uri sound=RingtoneManager.getDefaultUri(alarm?RingtoneManager.TYPE_ALARM:RingtoneManager.TYPE_NOTIFICATION);
+        if(!settings.soundUri().isEmpty()) {
+            android.net.Uri selected=android.net.Uri.parse(settings.soundUri());
+            try(android.content.res.AssetFileDescriptor file=c.getContentResolver().openAssetFileDescriptor(selected,"r")) { if(file!=null)sound=selected; }
+            catch(java.io.IOException|SecurityException ignored) { settings.setSoundUri(""); /* Use the default channel if a custom file is no longer readable. */ }
+        }
+        channel.setSound(settings.mode.equals("silent")?null:sound,new AudioAttributes.Builder().setUsage(alarm?AudioAttributes.USAGE_ALARM:AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
         c.getSystemService(NotificationManager.class).createNotificationChannel(channel);
     }
     private static void post(Context c,ReminderSettings settings,String key,String title,String detail) {

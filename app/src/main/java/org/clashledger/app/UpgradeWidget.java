@@ -85,6 +85,7 @@ public final class UpgradeWidget extends AppWidgetProvider {
         boolean boosted = ledger.boostUntil > now;
         String style=c.getSharedPreferences("display",0).getString("timerStyle","compact");
         boolean live=style.equals("clock");
+        root.setImageViewResource(R.id.boost_artwork,Artwork.boost(ledger.boosts,ledger.boostUntil,now));
         String summary=ledger.boosts.summary(now,ledger.boostUntil);
         if(boosted&&live)summary=summary.replace("Builder 10× · "+Upgrade.duration(ledger.boostUntil-now),"Builder Potion · 10×");
         root.setTextViewText(R.id.boost,summary.replace("\n"," · "));

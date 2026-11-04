@@ -28,7 +28,12 @@ public final class MainActivity extends Activity {
     private LinearLayout content, timerList, tabs;
     private TextView boostStatus, boostCaption, overview, nextBuilder, nextResearch, reminderStatusView;
     private Typeface displayFace;
+    private ImageView boostArtwork;
     private boolean builderBase;
+    private boolean resumed,clipboardChecked;
+    private int foregroundGeneration;
+    private Button updateNotice;
+    private String pickingSoundMode="notification";
     private final java.util.List<TimerBinding> bindings = new java.util.ArrayList<>();
     private static final class TimerBinding {
         final Upgrade upgrade; final TextView remaining, finish; final ProgressBar progress;
@@ -40,16 +45,24 @@ public final class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         if(DisplaySettings.oled(this))setTheme(R.style.AppTheme_Oled);
         super.onCreate(state);
+        CrashReport.install(getApplicationContext());
         displayFace = Typeface.createFromAsset(getAssets(), "fonts/BarlowCondensed-Bold.ttf");
-        if (state != null) builderBase = state.getBoolean("builderBase");
+        if (state != null) { builderBase = state.getBoolean("builderBase");pickingSoundMode=state.getString("pickingSoundMode","notification"); }
         if (android.os.Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
         else getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
         getWindow().setStatusBarColor(canvas); getWindow().setNavigationBarColor(canvas);
         ledger = new Ledger(this);
     }
-    @Override protected void onSaveInstanceState(Bundle state) { state.putBoolean("builderBase", builderBase); super.onSaveInstanceState(state); }
-    @Override protected void onResume() { super.onResume(); consumeProfileIntent(); ledger = new Ledger(this); build(); handler.removeCallbacks(tick); handler.post(tick); UpgradeWidget.refresh(this); Reminders.sync(this,true); updateReminderStatus(); consumeSharedExport();consumeUpgradeIntent(); }
-    @Override protected void onPause() { handler.removeCallbacks(tick); super.onPause(); }
+    @Override protected void onSaveInstanceState(Bundle state) { state.putBoolean("builderBase", builderBase);state.putString("pickingSoundMode",pickingSoundMode); super.onSaveInstanceState(state); }
+    @Override protected void onResume() { super.onResume();resumed=true;foregroundGeneration++;clipboardChecked=android.content.Intent.ACTION_SEND.equals(getIntent().getAction())||getIntent().hasExtra("upgradeId"); consumeProfileIntent(); ledger = new Ledger(this); build(); handler.removeCallbacks(tick); handler.post(tick); UpgradeWidget.refresh(this); Reminders.sync(this,true); updateReminderStatus(); consumeSharedExport();consumeUpgradeIntent();AppUpdates.checkAutomatically(this,this::refreshUpdateNotice);handler.post(this::checkClipboardWhenReady); }
+    @Override protected void onPause() { resumed=false;foregroundGeneration++;handler.removeCallbacks(tick); super.onPause(); }
+    @Override public void onWindowFocusChanged(boolean focused){super.onWindowFocusChanged(focused);if(focused)handler.post(this::checkClipboardWhenReady);}
+    private void checkClipboardWhenReady(){
+        if(!resumed||clipboardChecked||!hasWindowFocus())return;
+        clipboardChecked=true;int generation=foregroundGeneration;
+        ClipboardSuggestions.check(this,()->resumed&&foregroundGeneration==generation,text->importJson(text,true));
+    }
+    public void refreshUpdateNotice(){if(updateNotice==null)return;String version=AppUpdates.available(this);updateNotice.setText("Update available · "+version+"  ↗");updateNotice.setVisibility(version.isEmpty()?View.GONE:View.VISIBLE);}
     private void consumeUpgradeIntent() {
         String id=getIntent().getStringExtra("upgradeId");if(id==null)return;getIntent().removeExtra("upgradeId");
         for(Upgrade u:ledger.upgrades)if(u.id.equals(id)){editor(u);break;}
@@ -69,6 +82,15 @@ public final class MainActivity extends Activity {
     @Override protected void onNewIntent(android.content.Intent i) { super.onNewIntent(i);setIntent(i); }
     @Override protected void onActivityResult(int request,int result,android.content.Intent data) {
         super.onActivityResult(request,result,data);
+        if((request==701||request==702)&&result==RESULT_OK&&data!=null) {
+            android.net.Uri uri=request==701?data.getParcelableExtra(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI):data.getData();
+            if(uri!=null)try {
+                if(request==702)getContentResolver().takePersistableUriPermission(uri,android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try(android.content.res.AssetFileDescriptor file=getContentResolver().openAssetFileDescriptor(uri,"r")) { if(file==null)throw new java.io.IOException(); }
+                ReminderSettings options=new ReminderSettings(this);options.mode=pickingSoundMode;options.setSoundUri(uri.toString());Reminders.ensureChannel(this,options);
+                Toast.makeText(this,"Custom sound saved",Toast.LENGTH_SHORT).show();
+            }catch(SecurityException|java.io.IOException e){Toast.makeText(this,"Could not keep access to that sound. Choose a local audio file.",Toast.LENGTH_LONG).show();}
+        }
         if(request==700&&result==RESULT_OK&&data!=null&&data.getData()!=null)readExport(data.getData());
     }
     private void readExport(android.net.Uri uri) {
@@ -139,9 +161,10 @@ public final class MainActivity extends Activity {
         brand.addView(iconButton(R.drawable.ic_widget,"Add home screen widget",this::pinWidget),lp(44,44));
         LinearLayout.LayoutParams settingsParams=lp(44,44); settingsParams.leftMargin=dp(8);
         brand.addView(iconButton(R.drawable.ic_settings,"Settings",this::settingsMenu),settingsParams); content.addView(brand);
+        updateNotice=button("",()->AppUpdates.openAvailable(this));content.addView(updateNotice,lp(-1,48));refreshUpdateNotice();
         space(content,17);
         LinearLayout heading=horizontal(); heading.addView(label("VILLAGE OVERVIEW",muted),new LinearLayout.LayoutParams(0,-2,1));
-        heading.addView(label("●  OFFLINE",green)); content.addView(heading); space(content,12);
+        heading.addView(label("●  ON DEVICE",green)); content.addView(heading); space(content,12);
 
         LinearLayout hero=column(); hero.setPadding(dp(16),dp(12),dp(12),dp(12));
         hero.setBackground(panel(0xFF293649,0xFF182B2B,0xFF40534E,22));
@@ -168,7 +191,7 @@ public final class MainActivity extends Activity {
         content.addView(metrics); space(content,16);
 
         LinearLayout boost=horizontal(); boost.setPadding(dp(10),dp(9),dp(12),dp(9)); boost.setBackground(panel(0xFF302B47,0xFF242238,0xFF524563,18));
-        boost.addView(art(R.drawable.art_builder_potion,0),lp(58,70));
+        boostArtwork=art(R.drawable.ic_clock,0);boost.addView(boostArtwork,lp(58,70));
         LinearLayout potionCopy=column(); potionCopy.setPadding(dp(10),0,dp(6),0); potionCopy.addView(label("POTIONS & HELPERS",0xFFCEB3F4)); space(potionCopy,5);
         potionCopy.addView(title("Your village, boosted",22)); space(potionCopy,5);
         boostStatus=text("",12,0xFFD6C4ED,true); potionCopy.addView(boostStatus);
@@ -216,18 +239,19 @@ public final class MainActivity extends Activity {
     }
     private void updateTimers() {
         if (timerList == null) return;
-        long now=System.currentTimeMillis(), soonest=Long.MAX_VALUE; int ready=0;
-        for(Upgrade u:ledger.upgrades) {
-            long left=u.wallRemaining(now,ledger.boostUntil);
-            if(left<=0) ready++; else if(u.isBuilder()&&!u.goblin) soonest=Math.min(soonest,left);
-        }
-        overview.setText(ledger.busy(now)+" / "+ledger.builders+(ledger.goblins(now)>0?" + G":""));
-        nextBuilder.setText(soonest==Long.MAX_VALUE?"Available":Upgrade.duration(soonest));
+        long now=System.currentTimeMillis();
+        String builderGroup=builderBase?"Builder Base":"Builders";
+        int busy=0;for(Upgrade u:ledger.upgrades)if((u.group.equals(builderGroup)||(!builderBase&&u.occupiesBuilder()))&&!u.goblin&&u.wallRemaining(now,ledger.boostUntil)>0)busy++;
+        overview.setText(busy+" / "+(builderBase?ledger.baseBuilders:ledger.builders)+(!builderBase&&ledger.goblins(now)>0?" + G":""));
+        long soonest=UpgradeSummary.next(ledger.upgrades,builderGroup,now,ledger.boostUntil);
+        nextBuilder.setText(soonest==0?"Available":Upgrade.duration(soonest));
+        nextBuilder.setContentDescription(builderGroup+" next free: "+(soonest==0?"Available":Upgrade.duration(soonest)));
         long research=UpgradeSummary.next(ledger.upgrades,builderBase?"Star Laboratory":"Laboratory",now,ledger.boostUntil);
         nextResearch.setText(research==0?"Available":Upgrade.duration(research));
         nextResearch.setContentDescription((builderBase?"Star Laboratory":"Laboratory")+" next free: "+(research==0?"Available":Upgrade.duration(research)));
         boolean boosted=ledger.boostUntil>now;
         boostStatus.setText(ledger.boosts.summary(now,ledger.boostUntil));
+        boostArtwork.setImageResource(Artwork.boost(ledger.boosts,ledger.boostUntil,now));
         String helper="";for(Upgrade u:ledger.upgrades)if(u.remaining(now,ledger.boostUntil)>0&&!u.helperLabel(now).isEmpty())helper+=(helper.isEmpty()?"":"\n")+u.name+" · "+u.helperLabel(now);
         boostCaption.setText(helper.isEmpty()?"Tap to manage potions, helpers & events":helper);
         for(TimerBinding b:bindings) {
@@ -256,11 +280,11 @@ public final class MainActivity extends Activity {
                 touch(row,panel(0xFF1C2737,0xFF17212F,line,17),()->editor(u));
                 LinearLayout upper=horizontal();
                 FrameLayout portrait=new FrameLayout(this); portrait.setBackground(panel(0xFF344053,0xFF242E3F,0xFF40506A,13));
-                portrait.addView(art(Artwork.forName(this,u.name),4),new FrameLayout.LayoutParams(-1,-1)); upper.addView(portrait,lp(60,66));
+                portrait.addView(art(Artwork.forUpgrade(this,u),4),new FrameLayout.LayoutParams(-1,-1)); upper.addView(portrait,lp(60,66));
                 LinearLayout copy=column(); copy.setPadding(dp(12),0,0,0);
                 LinearLayout nameRow=horizontal(); TextView name=text(u.name,15,ink,true); name.setMaxLines(2); nameRow.addView(name,new LinearLayout.LayoutParams(0,-2,1));
                 nameRow.addView(art(R.drawable.ic_arrow,2),lp(16,16)); copy.addView(nameRow); space(copy,5);
-                TextView level=label("LEVEL "+Math.max(0,u.level-1)+"  →  "+u.level+(u.goblin?"   • GOBLIN":""),u.goblin?green:muted); level.setTextSize(9); level.setLetterSpacing(0.04f); copy.addView(level); space(copy,7);
+                TextView level=label((u.isForge()?"CAPITAL GOLD":"LEVEL "+Math.max(0,u.level-1)+"  →  "+u.level)+(u.goblin?"   • GOBLIN":""),u.goblin?green:muted); level.setTextSize(9); level.setLetterSpacing(0.04f); copy.addView(level); space(copy,7);
                 TextView remaining=text("",19,ink,true); copy.addView(remaining); upper.addView(copy,new LinearLayout.LayoutParams(0,-2,1)); row.addView(upper); space(row,10);
                 ProgressBar bar=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal); bar.setProgressDrawable(getDrawable(R.drawable.progress)); bar.setProgressTintList(ColorStateList.valueOf(groupColor(group))); bar.setMax(1000); row.addView(bar,lp(-1,4));
                 space(row,7); TextView finish=text("",10,muted,false); row.addView(finish); bindings.add(new TimerBinding(u,remaining,finish,bar));
@@ -364,7 +388,19 @@ public final class MainActivity extends Activity {
     }
     private void settingsMenu() {
         new AlertDialog.Builder(this).setTitle("Your village, your way")
-            .setItems(new String[]{"Switch / manage villages", "Village settings", "Boosts & helpers", "Countdown format", "Appearance & widget layout", "Alarms & notifications", "About & artwork"},(d,w)->{if(w==0)accounts();else if(w==1)settings();else if(w==2)boostOptions();else if(w==3)displayOptions();else if(w==4)appearance();else if(w==5)reminderOptions();else about();}).setNegativeButton("Close",null).show();
+            .setItems(new String[]{"Switch / manage villages", "Village settings", "Boosts & helpers", "Countdown format", "Appearance & widget layout", "Alarms & notifications", "Check for updates", "Crash diagnostics", "Import & update preferences", "About & artwork"},(d,w)->{if(w==0)accounts();else if(w==1)settings();else if(w==2)boostOptions();else if(w==3)displayOptions();else if(w==4)appearance();else if(w==5)reminderOptions();else if(w==6)AppUpdates.show(this);else if(w==7)CrashReport.show(this);else if(w==8)convenienceOptions();else about();}).setNegativeButton("Close",null).show();
+    }
+    private void convenienceOptions(){
+        android.content.SharedPreferences prefs=ClipboardSuggestions.preferences(this);LinearLayout f=form();
+        CheckBox clipboard=new CheckBox(this);clipboard.setText("Suggest clipboard exports when I open the app");clipboard.setTextColor(ink);clipboard.setChecked(prefs.getBoolean("suggestClipboard",false));f.addView(clipboard);
+        f.addView(text("Off by default. Looks for village JSON only while this app is visible. You'll always review before importing; duplicate exports are skipped and older ones are flagged. Android may show a clipboard-access notice.",12,muted,false));
+        CheckBox updates=new CheckBox(this);updates.setText("Automatically check for app updates");updates.setTextColor(ink);updates.setChecked(prefs.getBoolean("autoUpdates",true));f.addView(updates);
+        f.addView(text("Checks GitHub at most once a day when opened. Shows a notice when a newer APK is available. No village data is sent. Installation stays in your control.",12,muted,false));
+        ScrollView scroll=new ScrollView(this);scroll.addView(f);
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Import & update preferences").setView(scroll).setNegativeButton("Cancel",null).setPositiveButton("Save",(d,w)->{
+            prefs.edit().putBoolean("suggestClipboard",clipboard.isChecked()).putBoolean("autoUpdates",updates.isChecked()).apply();
+            clipboardChecked=false;handler.postDelayed(this::checkClipboardWhenReady,300);AppUpdates.checkAutomatically(this,this::refreshUpdateNotice);
+        }).create();dialog.show();
     }
     private void updateReminderStatus() {
         if(reminderStatusView==null)return;
@@ -388,6 +424,20 @@ public final class MainActivity extends Activity {
         super.onRequestPermissionsResult(requestCode,permissions,grantResults);
         if(requestCode==101) { Reminders.sync(this,false); updateReminderStatus(); }
     }
+    private void chooseReminderSound(ReminderSettings options) {
+        if(options.mode.equals("silent")){Toast.makeText(this,"Choose Notification sound or Alarm tone first",Toast.LENGTH_LONG).show();return;}
+        new AlertDialog.Builder(this).setTitle("Reminder sound").setItems(new String[]{"Choose ringtone / alarm sound","Choose audio file","Use system default"},(d,which)->{
+            pickingSoundMode=options.mode;
+            if(which==2){options.setSoundUri("");Reminders.ensureChannel(this,options);Toast.makeText(this,"Using system default",Toast.LENGTH_SHORT).show();return;}
+            android.content.Intent intent;
+            if(which==1)intent=new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).addCategory(android.content.Intent.CATEGORY_OPENABLE).setType("audio/*").addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION|android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            else intent=new android.content.Intent(android.media.RingtoneManager.ACTION_RINGTONE_PICKER)
+                .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TYPE,android.media.RingtoneManager.TYPE_ALL)
+                .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT,false)
+                .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,options.soundUri().isEmpty()?android.media.RingtoneManager.getDefaultUri(options.mode.equals("alarm")?android.media.RingtoneManager.TYPE_ALARM:android.media.RingtoneManager.TYPE_NOTIFICATION):android.net.Uri.parse(options.soundUri()));
+            try{startActivityForResult(intent,which==1?702:701);}catch(android.content.ActivityNotFoundException e){Toast.makeText(this,"No picker available. Try choosing an audio file.",Toast.LENGTH_LONG).show();}
+        }).setNegativeButton("Cancel",null).show();
+    }
     private void reminderOptions() {
         ReminderSettings options=new ReminderSettings(this);
         LinearLayout f=form();
@@ -405,6 +455,13 @@ public final class MainActivity extends Activity {
             }
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
         });
+        f.addView(button("Choose custom reminder sound",()->chooseReminderSound(options)),lp(-1,48));
+        Button early=button(options.leadMinutes==0?"Alert at completion":"Alert "+options.leadMinutes+" minutes early",()->{});
+        early.setOnClickListener(v->{LinearLayout fields=form();EditText minutes=field(fields,"Minutes before completion · 0–1440",String.valueOf(options.leadMinutes),true);
+            fields.addView(text("Applies to upgrade alerts in every village. Boost-expiry alerts stay at expiry. Timers already inside the chosen window are not alerted retroactively.",12,muted,false));
+            AlertDialog edit=new AlertDialog.Builder(this).setTitle("When to remind me").setView(fields).setNegativeButton("Cancel",null).setPositiveButton("Save",null).create();
+            edit.setOnShowListener(x->edit.getButton(-1).setOnClickListener(y->{try{int n=Integer.parseInt(minutes.getText().toString());if(n<0||n>1440)throw new IllegalArgumentException();options.leadMinutes=n;saveReminderOptions(options);early.setText(n==0?"Alert at completion":"Alert "+n+" minutes early");edit.dismiss();}catch(IllegalArgumentException e){minutes.setError("Enter 0–1440 minutes");}}));edit.show();});
+        f.addView(early,lp(-1,48));
         CheckBox vibration=new CheckBox(this); vibration.setText("Vibrate"); vibration.setTextColor(ink); vibration.setChecked(options.vibration); f.addView(vibration,lp(-1,48));
         vibration.setOnCheckedChangeListener((b,checked)->{options.vibration=checked;saveReminderOptions(options);});
         space(f,12); f.addView(label("NOTIFY ME WHEN THESE FINISH",gold)); space(f,8);
@@ -482,7 +539,9 @@ public final class MainActivity extends Activity {
         Spinner group=new Spinner(this); String[] groups=Upgrade.GROUPS; group.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,groups));
         if(existing!=null) for(int i=0;i<groups.length;i++) if(groups[i].equals(existing.group)) group.setSelection(i);
         f.addView(text("Category",12,muted,false)); f.addView(group);
-        EditText level=field(f,"Target level",existing==null?"":String.valueOf(existing.level),true);
+        EditText level=field(f,"Target level · ignored for Forge",existing==null?"1":String.valueOf(existing.level),true);
+        CheckBox goblin=new CheckBox(this);goblin.setText("Goblin slot · Home builders or Laboratory only");goblin.setTextColor(ink);goblin.setChecked(existing!=null&&existing.goblin);f.addView(goblin);
+        f.addView(text("Forge: Capital Gold crafting using a Home Village builder. Auto Forge: no builder or potion speedup. Enter the actual remaining work; Forge timers are kept on re-import until you edit or remove them.",12,muted,false));
         long remaining=existing==null?0:existing.remaining(System.currentTimeMillis(),ledger.boostUntil);
         long mins=(remaining+59999)/60000;
         f.addView(text("Work remaining at NORMAL speed. If boosted, enter the time before the boost, or convert the remaining work. Use 0 to mark ready.",12,muted,false));
@@ -500,39 +559,39 @@ public final class MainActivity extends Activity {
                 if(l<1||l>999||dd<0||dd>365||hh<0||hh>23||mm<0||mm>59) throw new IllegalArgumentException();
                 long work=(dd*1440L+hh*60L+mm)*60000L;
                 String g=groups[group.getSelectedItemPosition()]; long now=System.currentTimeMillis();
-                int busy=0; for(Upgrade u:ledger.upgrades) if(u!=current&&!u.goblin&&u.group.equals(g)&&u.remaining(now,ledger.boostUntil)>0) busy++;
-                int capacity=g.equals("Builders")?ledger.builders:g.equals("Builder Base")?2:1;
-                if(work>0&&busy>=capacity&&(current==null||!current.goblin)) { Toast.makeText(this,"All "+g.toLowerCase(java.util.Locale.ROOT)+" slots are busy. Edit or remove an current timer.",Toast.LENGTH_LONG).show(); return; }
+                boolean extra=goblin.isChecked();
+                if(extra&&!g.equals("Builders")&&!g.equals("Laboratory")){Toast.makeText(this,"Goblin slots are only for Home builders and Laboratory research.",Toast.LENGTH_LONG).show();return;}
+                if(work>0&&!UpgradeSlots.available(ledger.upgrades,current,g,extra,ledger.builders,ledger.baseBuilders,now,ledger.boostUntil)){Toast.makeText(this,"No free "+(extra?"Goblin ":"")+"slot. Forge and Home upgrades share normal builders.",Toast.LENGTH_LONG).show();return;}
+                if(g.equals("Forge")||g.equals("Auto Forge"))l=1;
                 Upgrade u=new Upgrade(current==null?UUID.randomUUID().toString():current.id,n,g,l,work,now);
-                u.boosts=ledger.boosts;
-                if(current!=null) { if(g.equals(current.group)){u.helperLevel=current.helperLevel;u.helperEnd=current.helperEnd;u.helperNext=current.helperNext;u.helperRecurrent=current.helperRecurrent;} u.goblin=current.goblin; if(work==mins*60000L && g.equals(current.group)) { u.work=current.remaining(now,ledger.boostUntil); u.total=current.total; } ledger.upgrades.set(ledger.upgrades.indexOf(current),u); } else ledger.upgrades.add(u);
+                u.boosts=ledger.boosts;u.goblin=extra;
+                if(current!=null) { if(g.equals(current.group)&&!extra){u.helperLevel=current.helperLevel;u.helperEnd=current.helperEnd;u.helperNext=current.helperNext;u.helperRecurrent=current.helperRecurrent;} if(work==mins*60000L && g.equals(current.group)) { u.work=current.remaining(now,ledger.boostUntil); u.total=current.total; } ledger.upgrades.set(ledger.upgrades.indexOf(current),u); } else ledger.upgrades.add(u);
                 changed(); dialog.dismiss();
             } catch(IllegalArgumentException e) { Toast.makeText(this,"Enter level 1–999, days 0–365, hours 0–23 and minutes 0–59.",Toast.LENGTH_LONG).show(); }
         })); dialog.show();
     }
     private void importJson() { importJson(""); }
-    private void importJson(String initial) {
+    private void importJson(String initial) { importJson(initial,false); }
+    private void importJson(String initial,boolean previewImmediately) {
         LinearLayout f = form();
         f.addView(text("In Clash of Clans: Settings → More Settings → Data Export → Copy. Paste the full export below.", 14, ink, false));
-        EditText input = new EditText(this);
+        ExportEditText input = new ExportEditText(this);
         input.setTextColor(ink); input.setHint("{\"tag\":\"#…\",\"timestamp\":…}"); input.setHintTextColor(muted);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         input.setBackground(panel(surface,surface,line,12)); input.setPadding(dp(12),dp(12),dp(12),dp(12)); input.setTypeface(Typeface.MONOSPACE); input.setTextSize(12); input.setMinLines(5); input.setMaxLines(9);
         input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(1_000_001)});
-        input.setText(initial);
-        f.addView(button("Paste from clipboard", () -> {
-            android.content.ClipboardManager clipboard = getSystemService(android.content.ClipboardManager.class);
-            android.content.ClipData clip = clipboard.getPrimaryClip();
-            if (clip == null || clip.getItemCount() == 0) { input.setError("Copy the village export first."); return; }
-            CharSequence value = clip.getItemAt(0).getText();
-            if (value == null) { input.setError("Clipboard has no JSON text."); return; }
-            input.setText(value); input.setError(null);
-        }));
+        input.loadExport(initial);
+        // Huge drafts should not be copied into Activity state / Binder transactions.
+        input.setSaveEnabled(false);
+        input.setBreakStrategy(android.graphics.text.LineBreaker.BREAK_STRATEGY_SIMPLE);
+        input.setHyphenationFrequency(android.text.Layout.HYPHENATION_FREQUENCY_NONE);
+        f.addView(button("Paste from clipboard", () -> input.pasteExport(true)));
+        f.addView(button("Clear export", () -> input.loadExport("")));
         space(f,12); f.addView(input); space(f,12);
         f.addView(text("Imports update the matching player tag or add a new saved village. Other villages are kept. New in-game actions require a fresh export.", 12, muted, false));
         ScrollView sc = new ScrollView(this); sc.addView(f);
         AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Import village JSON").setView(sc).setNegativeButton("Cancel",null).setNeutralButton("Choose file",(x,w)->startActivityForResult(new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).addCategory(android.content.Intent.CATEGORY_OPENABLE).setType("*/*").putExtra(android.content.Intent.EXTRA_MIME_TYPES,new String[]{"application/json","text/plain"}),700)).setPositiveButton("Preview import",null).create();
-        dialog.setOnShowListener(x -> dialog.getButton(-1).setOnClickListener(v -> {
+        dialog.setOnShowListener(x -> { dialog.getButton(-1).setOnClickListener(v -> {
             try {
                 org.json.JSONObject names;
                 try (java.io.InputStream stream = getAssets().open("item_names.json")) {
@@ -542,7 +601,7 @@ public final class MainActivity extends Activity {
                     names = new org.json.JSONObject(bytes.toString("UTF-8"));
                 }
                 long now = System.currentTimeMillis();
-                VillageImport data = new VillageImport(input.getText().toString(), names, now);
+                VillageImport data = new VillageImport(input.exportText(), names, now);
                 StringBuilder summary = new StringBuilder(data.tag + "\nExported " + DateFormat.getDateTimeInstance(DateFormat.MEDIUM,DateFormat.SHORT).format(new Date(data.timestamp)) + "\n");
                 for (String group : Upgrade.GROUPS) {
                     int count=0; for (Upgrade u : data.upgrades) if (u.group.equals(group)) count++;
@@ -550,7 +609,7 @@ public final class MainActivity extends Activity {
                 }
                 summary.append("\n\n").append(data.boosts.summary(now,data.boostUntil));
                 for(Upgrade u:data.upgrades)if(u.helperLevel>0)summary.append("\n").append(u.name).append(" · helper L").append(u.helperLevel).append(u.helperEnd>now?" · "+Upgrade.duration(u.helperEnd-now)+" active":" · resting");
-                summary.append("\n\nManual event adjustments reset on import.");
+                summary.append("\n\nManual event adjustments reset on import. Manually entered Forge timers are kept; review them after changes in-game.");
                 for(Ledger saved:Ledger.all(this))if(data.tag.equalsIgnoreCase(saved.playerTag)&&saved.importedAt>data.timestamp)
                     summary.append("\n\nThis export is older than the saved import for ").append(saved.village).append(".");
                 for (String warning : data.warnings) summary.append("\n\n").append(warning);
@@ -562,7 +621,9 @@ public final class MainActivity extends Activity {
             } catch (java.io.IOException e) {
                 input.setError("Could not load item names. Please reinstall the app.");
             }
-        }));
+        });
+            if(previewImmediately)handler.post(()->{if(dialog.isShowing())dialog.getButton(-1).performClick();});
+        });
         dialog.show();
     }
     private void pinWidget() {

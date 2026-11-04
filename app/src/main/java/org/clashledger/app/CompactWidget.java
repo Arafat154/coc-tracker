@@ -64,7 +64,7 @@ public final class CompactWidget {
         paint.setColor(DisplaySettings.oled(c)?0xFF303030:0xFF3B4A5F);RectF bounds=new RectF(3,3,81,81);canvas.drawOval(bounds,paint);
         paint.setColor(u.group.equals("Laboratory")||u.group.equals("Star Laboratory")?0xFFBBA3EF:u.group.equals("Pets")?0xFF83CEDD:0xFF94DDAA);
         paint.setStrokeCap(Paint.Cap.ROUND);canvas.drawArc(bounds,-90,360f*progress/1000,false,paint);
-        Drawable art=c.getDrawable(Artwork.forName(c,u.name));if(art!=null){
+        Drawable art=c.getDrawable(Artwork.forUpgrade(c,u));if(art!=null){
             float scale=Math.min(62f/Math.max(1,art.getIntrinsicWidth()),62f/Math.max(1,art.getIntrinsicHeight()));
             int w=Math.round(art.getIntrinsicWidth()*scale),h=Math.round(art.getIntrinsicHeight()*scale);art.setBounds(42-w/2,42-h/2,42+(w+1)/2,42+(h+1)/2);art.draw(canvas);
         }

@@ -18,6 +18,7 @@ public final class BoostState {
     public double rate(String group,long time,long builderEnd) {
         double speed=1;
         if(group.equals("Builders")) speed=Math.max(time<builderEnd?10:1,time<ends[2]?2:1);
+        if(group.equals("Forge")) speed=time<builderEnd?10:1;
         if(group.equals("Laboratory")) speed=(time<ends[0]?24:1)+(time<ends[4]?3:0);
         if(group.equals("Pets")) speed=(time<ends[1]?24:1)+(time<ends[4]?3:0);
         if(group.equals("Builder Base")||group.equals("Star Laboratory")) speed=time<ends[3]?10:1;

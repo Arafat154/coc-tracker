@@ -47,8 +47,8 @@ public final class WidgetRowsService extends RemoteViewsService {
                 if(DisplaySettings.oled(context))row.setInt(R.id.widget_row,"setBackgroundResource",R.drawable.oled_tile);
                 long left = u.wallRemaining(now, ledger.boostUntil);
                 row.setTextViewText(R.id.name, u.name + (u.goblin ? " · G" : "")+(u.helperLevel>0?" · H"+u.helperLevel:""));
-                row.setTextViewText(R.id.level, "→ " + u.level);
-                row.setImageViewResource(R.id.artwork, Artwork.forName(context, u.name));
+                row.setTextViewText(R.id.level, u.isForge()?"Gold":"→ " + u.level);
+                row.setImageViewResource(R.id.artwork, Artwork.forUpgrade(context,u));
                 row.setOnClickFillInIntent(R.id.widget_row, new Intent());
                 row.setChronometerCountDown(R.id.countdown, true);
                 row.setChronometer(R.id.countdown, elapsed + left, null, left > 0 && style.equals("clock"));
