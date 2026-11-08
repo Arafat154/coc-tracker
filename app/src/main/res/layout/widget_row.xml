@@ -63,18 +63,18 @@
             android:layout_height="5dp"
             android:layout_marginTop="6dp"
             android:orientation="horizontal">
-            <View android:id="@+id/seg0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off"/>
-            <View android:id="@+id/seg1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off"/>
-            <View android:id="@+id/seg2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off"/>
-            <View android:id="@+id/seg3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off"/>
-            <View android:id="@+id/seg4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off"/>
-            <View android:id="@+id/seg5" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off"/>
-            <View android:id="@+id/seg6" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off"/>
-            <View android:id="@+id/seg7" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off"/>
-            <View android:id="@+id/seg8" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off"/>
-            <View android:id="@+id/seg9" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off"/>
-            <View android:id="@+id/seg10" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off"/>
-            <View android:id="@+id/seg11" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@drawable/seg_off"/>
+            <ImageView android:id="@+id/seg0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off" android:importantForAccessibility="no"/>
+            <ImageView android:id="@+id/seg1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off" android:importantForAccessibility="no"/>
+            <ImageView android:id="@+id/seg2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off" android:importantForAccessibility="no"/>
+            <ImageView android:id="@+id/seg3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off" android:importantForAccessibility="no"/>
+            <ImageView android:id="@+id/seg4" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off" android:importantForAccessibility="no"/>
+            <ImageView android:id="@+id/seg5" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off" android:importantForAccessibility="no"/>
+            <ImageView android:id="@+id/seg6" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off" android:importantForAccessibility="no"/>
+            <ImageView android:id="@+id/seg7" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off" android:importantForAccessibility="no"/>
+            <ImageView android:id="@+id/seg8" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off" android:importantForAccessibility="no"/>
+            <ImageView android:id="@+id/seg9" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off" android:importantForAccessibility="no"/>
+            <ImageView android:id="@+id/seg10" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginEnd="3dp" android:background="@drawable/seg_off" android:importantForAccessibility="no"/>
+            <ImageView android:id="@+id/seg11" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@drawable/seg_off" android:importantForAccessibility="no"/>
         </LinearLayout>
 
         <ProgressBar
