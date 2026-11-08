@@ -47,6 +47,17 @@ public final class WidgetRowsService extends RemoteViewsService {
         }
     }
 
+    /** Same palette as the drawables, as a plain color for text. */
+    private static int accentColor(String group) {
+        switch (group) {
+            case "Laboratory": return 0xFFA99BFF;
+            case "Pets": return 0xFF5EEAD4;
+            case "Builder Base":
+            case "Star Laboratory": return 0xFF6CC4FF;
+            default: return 0xFFFFC15E;
+        }
+    }
+
     public static List<RemoteViews> buildRows(android.content.Context context) {
         List<RemoteViews> rows = new ArrayList<>();
         Ledger ledger = new Ledger(context);
@@ -59,7 +70,7 @@ public final class WidgetRowsService extends RemoteViewsService {
             int accent = accentDrawable(group);
             RemoteViews section = new RemoteViews(pkg, R.layout.widget_section);
             section.setTextViewText(R.id.section, group.toUpperCase(Locale.ROOT));
-            section.setInt(R.id.section_dot, "setBackgroundResource", accent);
+            section.setTextColor(R.id.section_dot, accentColor(group));
             if (group.equals("Builders")) {
                 int busy = ledger.busy(now);
                 int free = Math.max(0, ledger.builders - busy);
