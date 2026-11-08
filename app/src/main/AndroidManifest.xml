@@ -24,9 +24,14 @@
             </intent-filter>
         </receiver>
         <service android:name=".WidgetRowsService" android:permission="android.permission.BIND_REMOTEVIEWS" android:exported="false"/>
-        <receiver android:name=".UpgradeWidget" android:exported="false">
-            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/><action android:name="android.intent.action.TIME_SET"/><action android:name="android.intent.action.TIMEZONE_CHANGED"/></intent-filter>
+        <!-- The old widget is switched off so it no longer appears in the widget picker. -->
+        <receiver android:name=".UpgradeWidget" android:enabled="false" android:exported="false">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/upgrade_widget"/>
+        </receiver>
+        <receiver android:name=".MidnightWidget" android:label="Clash Ledger Midnight" android:exported="false">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/><action android:name="android.intent.action.TIME_SET"/><action android:name="android.intent.action.TIMEZONE_CHANGED"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/midnight_widget"/>
         </receiver>
     </application>
 </manifest>
