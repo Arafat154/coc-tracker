@@ -121,7 +121,10 @@ public final class UpgradeWidget extends AppWidgetProvider {
         root.setImageViewResource(R.id.townhall, Artwork.townHall(c, ledger.townHall));
         root.setOnClickPendingIntent(R.id.townhall, open);
         root.setOnClickPendingIntent(R.id.boost,open);
-        root.setTextViewText(R.id.widget_meta, (ledger.townHall > 0 ? "TH " + ledger.townHall + " · " : "") + ledger.busy(now) + "/" + ledger.builders + " BUILDERS" + (ledger.goblins(now) > 0 ? " + G" : ""));
+        root.setTextViewText(R.id.widget_meta, "UPGRADE TIMERS");
+        root.setTextViewText(R.id.th_chip, "TH" + ledger.townHall);
+        root.setViewVisibility(R.id.th_chip, ledger.townHall > 0 ? View.VISIBLE : View.GONE);
+        root.setTextViewText(R.id.refresh_age, DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(now)));
         boolean boosted = ledger.boostUntil > now;
         String style=c.getSharedPreferences("display",0).getString("timerStyle","compact");
         boolean live=style.equals("clock");
@@ -145,7 +148,7 @@ public final class UpgradeWidget extends AppWidgetProvider {
         }
         root.setPendingIntentTemplate(R.id.rows, PendingIntent.getActivity(c, 2, new Intent(c, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE));
         bindWar(c, root, now, elapsed, ledger.playerTag);
-        root.setTextViewText(R.id.footer, "OPEN VILLAGE  ↗     UPDATED " + DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(now)));
+        root.setTextViewText(R.id.footer, "OPEN VILLAGE  ↗");
         manager.updateAppWidget(id, root);
         if (android.os.Build.VERSION.SDK_INT < 31) manager.notifyAppWidgetViewDataChanged(id, R.id.rows);
     }
