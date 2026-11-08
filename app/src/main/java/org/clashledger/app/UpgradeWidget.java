@@ -16,11 +16,12 @@ import java.text.DateFormat;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public final class UpgradeWidget extends AppWidgetProvider {
+/** Shared widget code. The registered provider is MidnightWidget, a subclass of this. */
+public class UpgradeWidget extends AppWidgetProvider {
     public static final String SWITCH_VILLAGE="org.clashledger.SWITCH_VILLAGE";
     public static void refresh(Context context) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        int[] ids = manager.getAppWidgetIds(new ComponentName(context, UpgradeWidget.class));
+        int[] ids = manager.getAppWidgetIds(new ComponentName(context, MidnightWidget.class));
         for (int id : ids) render(context, manager, id);
         scheduleNext(context, ids.length > 0);
     }
@@ -51,7 +52,7 @@ public final class UpgradeWidget extends AppWidgetProvider {
     @Override public void onDisabled(Context c) { scheduleNext(c, false); }
     private static void scheduleNext(Context c, boolean enabled) {
         android.app.AlarmManager alarms = c.getSystemService(android.app.AlarmManager.class);
-        PendingIntent intent = PendingIntent.getBroadcast(c, 3, new Intent(c, UpgradeWidget.class).setAction("org.clashledger.REFRESH"), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent intent = PendingIntent.getBroadcast(c, 3, new Intent(c, MidnightWidget.class).setAction("org.clashledger.REFRESH"), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         alarms.cancel(intent);
         if (!enabled) return;
         Ledger ledger = new Ledger(c);
@@ -76,7 +77,7 @@ public final class UpgradeWidget extends AppWidgetProvider {
             String next=villages.get((index+1)%villages.size()).village;
             root.setContentDescription(R.id.switch_village,"Switch village to "+next+". Current village "+(index+1)+" of "+villages.size());
             root.setOnClickPendingIntent(R.id.switch_village,PendingIntent.getBroadcast(c,4,
-                new Intent(c,UpgradeWidget.class).setAction(SWITCH_VILLAGE),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
+                new Intent(c,MidnightWidget.class).setAction(SWITCH_VILLAGE),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
         }
     }
     /** Shows the optional war strip, or hides it when war timers are off or no war is running. */
@@ -113,7 +114,7 @@ public final class UpgradeWidget extends AppWidgetProvider {
             root.setInt(R.id.refresh,"setBackgroundResource",R.drawable.oled_tile);
         }
         PendingIntent open = PendingIntent.getActivity(c, 0, new Intent(c, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        PendingIntent refresh = PendingIntent.getBroadcast(c, 1, new Intent(c, UpgradeWidget.class).setAction("org.clashledger.REFRESH"), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent refresh = PendingIntent.getBroadcast(c, 1, new Intent(c, MidnightWidget.class).setAction("org.clashledger.REFRESH"), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         root.setOnClickPendingIntent(R.id.village, open);
         root.setOnClickPendingIntent(R.id.footer, open);
         root.setOnClickPendingIntent(R.id.refresh, refresh);
