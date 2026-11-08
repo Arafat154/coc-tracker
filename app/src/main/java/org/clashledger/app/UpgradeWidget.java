@@ -7,11 +7,14 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.view.View;
 import android.widget.RemoteViews;
 import java.text.DateFormat;
 import java.util.Date;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class UpgradeWidget extends AppWidgetProvider {
     public static final String SWITCH_VILLAGE="org.clashledger.SWITCH_VILLAGE";
@@ -30,7 +33,20 @@ public final class UpgradeWidget extends AppWidgetProvider {
         super.onReceive(c, i);
         String action = i.getAction();
         if(SWITCH_VILLAGE.equals(action)) { Ledger.next(c);refresh(c);Reminders.sync(c,true);return; }
-        if ("org.clashledger.REFRESH".equals(action) || "android.intent.action.TIME_SET".equals(action) || "android.intent.action.TIMEZONE_CHANGED".equals(action)) refresh(c);
+        boolean refreshing = "org.clashledger.REFRESH".equals(action) || "android.intent.action.TIME_SET".equals(action) || "android.intent.action.TIMEZONE_CHANGED".equals(action);
+        if (refreshing) refresh(c);
+        if ((refreshing || AppWidgetManager.ACTION_APPWIDGET_UPDATE.equals(action)) && War.enabled(c)) syncWar(c);
+    }
+    /** Refreshes war data off the main thread. The receiver stays alive for up to nine seconds while it runs. */
+    private void syncWar(Context c) {
+        final PendingResult pending = goAsync();
+        final AtomicBoolean finished = new AtomicBoolean(false);
+        final Runnable finish = () -> { if (finished.compareAndSet(false, true) && pending != null) pending.finish(); };
+        new Handler(Looper.getMainLooper()).postDelayed(finish, 9000);
+        War.syncAsync(c, false, changed -> {
+            if (changed) refresh(c);
+            finish.run();
+        });
     }
     @Override public void onDisabled(Context c) { scheduleNext(c, false); }
     private static void scheduleNext(Context c, boolean enabled) {
@@ -47,6 +63,8 @@ public final class UpgradeWidget extends AppWidgetProvider {
         }
         for(long end:ledger.boosts.ends)if(end>now)next=Math.min(next,Math.min(end,now+60000));
         if(ledger.boosts.eventEnd>now&&ledger.boosts.eventRate>1)next=Math.min(next,Math.min(ledger.boosts.eventEnd,now+60000));
+        // With war timers on, wake at least every ten minutes so the strip stays current.
+        if (War.enabled(c)) next = Math.min(next, now + 10 * 60000L);
         // Best effort: Android may defer this refresh in Doze. No exact-alarm permission.
         if (next != Long.MAX_VALUE) alarms.setAndAllowWhileIdle(android.app.AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + Math.max(1000, next - now), intent);
     }
@@ -60,6 +78,28 @@ public final class UpgradeWidget extends AppWidgetProvider {
             root.setOnClickPendingIntent(R.id.switch_village,PendingIntent.getBroadcast(c,4,
                 new Intent(c,UpgradeWidget.class).setAction(SWITCH_VILLAGE),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
         }
+    }
+    /** Shows the optional war strip, or hides it when war timers are off or no war is running. */
+    private static void bindWar(Context c, RemoteViews root, long now, long elapsed, String playerTag) {
+        War.Summary w = War.current(c, playerTag);
+        if (w == null) { root.setViewVisibility(R.id.war_strip, View.GONE); return; }
+        boolean prep = w.start > now;
+        long target = prep ? w.start : w.end;
+        if (target <= now) { root.setViewVisibility(R.id.war_strip, View.GONE); return; }
+        String kind = w.type.equals("cwl") ? "CWL WAR" : w.type.equals("friendly") ? "FRIENDLY WAR" : "WAR";
+        String label = kind + " · " + (prep ? "PREP DAY" : "BATTLE DAY");
+        if (!prep && w.attacksLeft >= 0) label += " · " + w.attacksLeft + " LEFT";
+        String title = w.ours + " vs " + w.theirs;
+        if (!prep) title += "  ★ " + w.oursStars + "–" + w.theirsStars;
+        root.setTextViewText(R.id.war_label, label);
+        root.setTextViewText(R.id.war_title, title);
+        root.setTextViewText(R.id.war_when, prep ? "starts in" : "ends in");
+        root.setChronometerCountDown(R.id.war_clock, true);
+        root.setChronometer(R.id.war_clock, elapsed + (target - now), null, true);
+        Intent launch = c.getPackageManager().getLaunchIntentForPackage("com.supercell.clashofclans");
+        if (launch == null) launch = new Intent(c, WarSettingsActivity.class);
+        root.setOnClickPendingIntent(R.id.war_strip, PendingIntent.getActivity(c, 5, launch, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+        root.setViewVisibility(R.id.war_strip, View.VISIBLE);
     }
     static void render(Context c, AppWidgetManager manager, int id) {
         Ledger ledger = new Ledger(c);
@@ -104,6 +144,7 @@ public final class UpgradeWidget extends AppWidgetProvider {
             root.setRemoteAdapter(R.id.rows, adapter);
         }
         root.setPendingIntentTemplate(R.id.rows, PendingIntent.getActivity(c, 2, new Intent(c, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE));
+        bindWar(c, root, now, elapsed, ledger.playerTag);
         root.setTextViewText(R.id.footer, "OPEN VILLAGE  ↗     UPDATED " + DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(now)));
         manager.updateAppWidget(id, root);
         if (android.os.Build.VERSION.SDK_INT < 31) manager.notifyAppWidgetViewDataChanged(id, R.id.rows);
