@@ -118,7 +118,9 @@ public class UpgradeWidget extends AppWidgetProvider {
         root.setOnClickPendingIntent(R.id.village, open);
         root.setOnClickPendingIntent(R.id.footer, open);
         root.setOnClickPendingIntent(R.id.refresh, refresh);
-        root.setTextViewText(R.id.village, ledger.village);
+        // An export carries only the player tag, so a raw tag is shown as a friendly name.
+        String title = ledger.village == null || ledger.village.trim().isEmpty() || ledger.village.startsWith("#") ? "Main Village" : ledger.village;
+        root.setTextViewText(R.id.village, title);
         root.setImageViewResource(R.id.townhall, Artwork.townHall(c, ledger.townHall));
         root.setOnClickPendingIntent(R.id.townhall, open);
         root.setOnClickPendingIntent(R.id.boost,open);
@@ -133,6 +135,8 @@ public class UpgradeWidget extends AppWidgetProvider {
         String summary=ledger.boosts.summary(now,ledger.boostUntil);
         if(boosted&&live)summary=summary.replace("Builder 10× · "+Upgrade.duration(ledger.boostUntil-now),"Builder Potion · 10×");
         root.setTextViewText(R.id.boost,summary.replace("\n"," · "));
+        // Nothing to show while no boost is running.
+        root.setViewVisibility(R.id.boost_strip, boosted || !summary.startsWith("No active") ? View.VISIBLE : View.GONE);
         root.setViewVisibility(R.id.boost_clock, boosted&&live ? View.VISIBLE : View.GONE);
         root.setChronometerCountDown(R.id.boost_clock, true);
         root.setChronometer(R.id.boost_clock, elapsed + Math.max(0, ledger.boostUntil - now), "%s left", boosted&&live);
