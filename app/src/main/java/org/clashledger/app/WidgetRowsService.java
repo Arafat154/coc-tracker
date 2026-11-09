@@ -11,10 +11,10 @@ import java.util.Locale;
 
 /** A launcher-hosted scrolling collection keeps every upgrade accessible at any widget size. */
 public final class WidgetRowsService extends RemoteViewsService {
-    private static final int SEGMENTS = 12;
+    private static final int SEGMENTS = 14;
     private static final int[] SEG_IDS = {
-        R.id.seg0, R.id.seg1, R.id.seg2, R.id.seg3, R.id.seg4, R.id.seg5,
-        R.id.seg6, R.id.seg7, R.id.seg8, R.id.seg9, R.id.seg10, R.id.seg11
+        R.id.seg0, R.id.seg1, R.id.seg2, R.id.seg3, R.id.seg4, R.id.seg5, R.id.seg6,
+        R.id.seg7, R.id.seg8, R.id.seg9, R.id.seg10, R.id.seg11, R.id.seg12, R.id.seg13
     };
     private static final long LOW_MS = 3600000L;
     private static final int WHITE = 0xFFF2F4F8, MUTED = 0xFF8A93A5, RED = 0xFFFF6B6B, GREEN = 0xFF5EE08A;
